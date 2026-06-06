@@ -96,7 +96,6 @@ export default function App() {
           autoCompleteSelection();
           return SELECT_TIME_LIMIT;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -116,7 +115,6 @@ export default function App() {
           resetAll();
           return RESULT_TIME_LIMIT;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -155,7 +153,6 @@ export default function App() {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-
     setCameraReady(false);
   }
 
@@ -258,60 +255,6 @@ export default function App() {
 
       return next;
     });
-  }
-
-  function createSamplePhoto(index) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 900;
-    canvas.height = 1200;
-
-    const ctx = canvas.getContext("2d");
-
-    const colors = [
-      ["#2e1065", "#ec4899"],
-      ["#831843", "#8b5cf6"],
-      ["#312e81", "#06b6d4"],
-      ["#111827", "#f97316"],
-      ["#064e3b", "#22c55e"],
-      ["#7c2d12", "#facc15"],
-    ];
-
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, colors[index][0]);
-    gradient.addColorStop(1, colors[index][1]);
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    ctx.beginPath();
-    ctx.arc(450, 330, 190, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.font = "bold 68px sans-serif";
-    ctx.fillText(`SAMPLE CUT ${index + 1}`, canvas.width / 2, 500);
-
-    ctx.font = "34px sans-serif";
-    ctx.fillText("세로 촬영 비율 테스트", canvas.width / 2, 570);
-
-    return canvas.toDataURL("image/jpeg", 0.95);
-  }
-
-  function runSampleTest() {
-    stopCamera();
-
-    const samplePhotos = Array.from({ length: TOTAL_SHOTS }, (_, index) =>
-      createSamplePhoto(index)
-    );
-
-    setCapturedPhotos(samplePhotos);
-    setSelectedIndexes([]);
-    setResultUrl("");
-    setPublicUrl("");
-    setUploadError("");
-    setPhase(PHASE.SELECT);
   }
 
   function toggleSelect(index) {
@@ -560,20 +503,6 @@ export default function App() {
             >
               <Camera size={34} /> 촬영 시작하기
             </button>
-
-            <button
-              onClick={runSampleTest}
-              className="mx-auto mt-5 block rounded-full border border-white/20 bg-white/10 px-10 py-4 text-xl font-bold text-white/90 active:scale-95"
-            >
-              카메라 없이 샘플로 테스트하기
-            </button>
-
-            <div className="mt-10 flex justify-center gap-8 text-white/70">
-              <span>① 6장 촬영</span>
-              <span>② 4장 선택</span>
-              <span>③ 네컷 생성</span>
-              <span>④ QR 저장</span>
-            </div>
           </section>
         )}
 
@@ -601,13 +530,6 @@ export default function App() {
             {errorMessage && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 px-8 text-center">
                 <div className="text-3xl font-bold">{errorMessage}</div>
-
-                <button
-                  onClick={runSampleTest}
-                  className="mt-8 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-10 py-4 text-2xl font-bold active:scale-95"
-                >
-                  샘플 이미지로 테스트하기
-                </button>
               </div>
             )}
 
@@ -762,12 +684,6 @@ export default function App() {
               {uploadError && (
                 <p className="mt-4 max-w-md text-lg text-red-300">
                   {uploadError}
-                </p>
-              )}
-
-              {publicUrl && (
-                <p className="mt-4 max-w-md break-all text-sm text-white/50">
-                  {publicUrl}
                 </p>
               )}
 
