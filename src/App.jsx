@@ -13,13 +13,24 @@ import { supabase } from "./supabase";
 const APP_TITLE = "놀구로 네컷";
 const SUBTITLE = "오늘의 순간을 남겨보세요 ✨";
 const SHUTTER_SOUND_PATH = "/sounds/shutter.mp3";
-const FRAME_PATH = "/frames/basic.png";
 const STORAGE_BUCKET = "photo-results";
 
 const TOTAL_SHOTS = 6;
 const REQUIRED_SELECTIONS = 4;
 const SELECT_TIME_LIMIT = 30;
 const RESULT_TIME_LIMIT = 60;
+const READY_TIME_LIMIT = 10;
+
+const FRAME_COLORS = [
+  { id: "purple", name: "퍼플", emoji: "💜", bg: "#05030a", accent: "#a855f7" },
+  { id: "pink", name: "핑크", emoji: "🩷", bg: "#170716", accent: "#ec4899" },
+  { id: "blue", name: "블루", emoji: "🩵", bg: "#06111f", accent: "#38bdf8" },
+  { id: "mint", name: "민트", emoji: "💚", bg: "#031713", accent: "#22c55e" },
+  { id: "yellow", name: "옐로우", emoji: "💛", bg: "#171203", accent: "#facc15" },
+  { id: "black", name: "블랙", emoji: "🖤", bg: "#000000", accent: "#ffffff" },
+  { id: "red", name: "레드", emoji: "❤️", bg: "#180404", accent: "#ef4444" },
+  { id: "rainbow", name: "스페셜", emoji: "🌈", bg: "#05030a", accent: "#f472b6" },
+];
 
 const FOUR_CUT_CONFIG = {
   canvasWidth: 1200,
@@ -34,6 +45,8 @@ const FOUR_CUT_CONFIG = {
 
 const PHASE = {
   WAITING: "WAITING",
+  FRAME_SELECT: "FRAME_SELECT",
+  READY: "READY",
   CAMERA: "CAMERA",
   COUNTDOWN: "COUNTDOWN",
   PREVIEW: "PREVIEW",
@@ -47,9 +60,11 @@ export default function App() {
   const shutterRef = useRef(null);
 
   const [phase, setPhase] = useState(PHASE.WAITING);
+  const [selectedFrame, setSelectedFrame] = useState(FRAME_COLORS[0]);
   const [capturedPhotos, setCapturedPhotos] = useState([]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [countdown, setCountdown] = useState(3);
+  const [readyCountdown, setReadyCountdown] = useState(READY_TIME_LIMIT);
   const [flash, setFlash] = useState(false);
   const [resultUrl, setResultUrl] = useState("");
   const [publicUrl, setPublicUrl] = useState("");
@@ -66,6 +81,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
+      startCamera();
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== PHASE.READY) return;
+
+    setReadyCountdown(READY_TIME_LIMIT);
+
+    const timer = setInterval(() => {
+      setReadyCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setAutoShooting(true);
+          setPhase(PHASE.CAMERA);
+          return READY_TIME_LIMIT;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  useEffect(() => {
     if (phase !== PHASE.CAMERA) return;
     if (!autoShooting) return;
     if (!cameraReady) return;
@@ -73,16 +114,10 @@ export default function App() {
 
     const timer = setTimeout(() => {
       beginCountdown();
-    }, capturedPhotos.length === 0 ? 1000 : 1200);
+    }, capturedPhotos.length === 0 ? 800 : 1200);
 
     return () => clearTimeout(timer);
   }, [phase, autoShooting, cameraReady, capturedPhotos.length, errorMessage]);
-
-  useEffect(() => {
-    if ([PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
-      startCamera();
-    }
-  }, [phase]);
 
   useEffect(() => {
     if (phase !== PHASE.SELECT) return;
@@ -156,8 +191,28 @@ export default function App() {
     setCameraReady(false);
   }
 
+  function startShooting() {
+    setPhase(PHASE.FRAME_SELECT);
+  }
+
+  function selectFrameAndStart(frame) {
+    setSelectedFrame(frame);
+    setCapturedPhotos([]);
+    setSelectedIndexes([]);
+    setResultUrl("");
+    setPublicUrl("");
+    setUploadError("");
+    setErrorMessage("");
+    setAutoShooting(false);
+    setPhase(PHASE.READY);
+  }
+
   function goBack() {
-    if (phase === PHASE.CAMERA) {
+    if (phase === PHASE.FRAME_SELECT) {
+      setPhase(PHASE.WAITING);
+    }
+
+    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
       stopCamera();
       setCapturedPhotos([]);
       setAutoShooting(false);
@@ -197,17 +252,6 @@ export default function App() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     return canvas.toDataURL("image/jpeg", 0.95);
-  }
-
-  function startShooting() {
-    setCapturedPhotos([]);
-    setSelectedIndexes([]);
-    setResultUrl("");
-    setPublicUrl("");
-    setUploadError("");
-    setErrorMessage("");
-    setAutoShooting(true);
-    setPhase(PHASE.CAMERA);
   }
 
   function beginCountdown() {
@@ -404,6 +448,57 @@ export default function App() {
     ctx.restore();
   }
 
+  function drawDynamicFrame(ctx, frame) {
+    const { canvasWidth, canvasHeight, slots } = FOUR_CUT_CONFIG;
+
+    if (frame.id === "rainbow") {
+      const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+      gradient.addColorStop(0, "#ec4899");
+      gradient.addColorStop(0.25, "#a855f7");
+      gradient.addColorStop(0.5, "#38bdf8");
+      gradient.addColorStop(0.75, "#22c55e");
+      gradient.addColorStop(1, "#facc15");
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = frame.bg;
+    }
+
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 78px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("NOLGURO", 70, 105);
+
+    ctx.font = "bold 28px sans-serif";
+    ctx.save();
+    ctx.translate(1128, 900);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText("NOLGURO", 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(95, 1320);
+    ctx.rotate(Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText("NOLGURO", 0, 0);
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 26px sans-serif";
+    ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
+
+    slots.forEach((slot) => {
+      ctx.save();
+      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
+      ctx.strokeStyle = frame.accent;
+      ctx.lineWidth = 10;
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
   async function composeFinalImage(photoList) {
     const canvas = document.createElement("canvas");
     canvas.width = FOUR_CUT_CONFIG.canvasWidth;
@@ -411,8 +506,7 @@ export default function App() {
 
     const ctx = canvas.getContext("2d");
 
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawDynamicFrame(ctx, selectedFrame);
 
     for (let i = 0; i < photoList.length; i++) {
       const img = await loadImage(photoList[i]);
@@ -421,8 +515,16 @@ export default function App() {
       drawCoverImage(ctx, img, slot);
     }
 
-    const frame = await loadImage(FRAME_PATH);
-    ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    drawDynamicFrame(ctx, selectedFrame);
+
+    for (let i = 0; i < photoList.length; i++) {
+      const img = await loadImage(photoList[i]);
+      const slot = FOUR_CUT_CONFIG.slots[i];
+
+      drawCoverImage(ctx, img, slot);
+    }
+
+    drawDynamicFrameTextOnly(ctx, selectedFrame);
 
     const today = new Date();
     const dateText = `${today.getFullYear()}.${String(
@@ -435,6 +537,43 @@ export default function App() {
     ctx.fillText(dateText, canvas.width / 2, 1668);
 
     return canvas.toDataURL("image/png");
+  }
+
+  function drawDynamicFrameTextOnly(ctx, frame) {
+    const { canvasWidth, slots } = FOUR_CUT_CONFIG;
+
+    slots.forEach((slot) => {
+      ctx.save();
+      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
+      ctx.strokeStyle = frame.accent;
+      ctx.lineWidth = 10;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 78px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("NOLGURO", 70, 105);
+
+    ctx.font = "bold 28px sans-serif";
+    ctx.save();
+    ctx.translate(1128, 900);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText("NOLGURO", 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(95, 1320);
+    ctx.rotate(Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText("NOLGURO", 0, 0);
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 26px sans-serif";
+    ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
   }
 
   function downloadResult() {
@@ -457,6 +596,7 @@ export default function App() {
     setUploadError("");
     setUploading(false);
     setCountdown(3);
+    setReadyCountdown(READY_TIME_LIMIT);
     setFlash(false);
     setErrorMessage("");
     setAutoShooting(false);
@@ -503,6 +643,78 @@ export default function App() {
             >
               <Camera size={34} /> 촬영 시작하기
             </button>
+          </section>
+        )}
+
+        {phase === PHASE.FRAME_SELECT && (
+          <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+            <BackButton onClick={goBack} />
+
+            <h2 className="text-5xl font-black">프레임 색상을 선택하세요</h2>
+            <p className="mt-3 text-xl text-white/70">
+              원하는 색상을 고르면 촬영이 시작됩니다.
+            </p>
+
+            <div className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-4">
+              {FRAME_COLORS.map((frame) => (
+                <button
+                  key={frame.id}
+                  onClick={() => selectFrameAndStart(frame)}
+                  className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl transition active:scale-95"
+                >
+                  <div
+                    className="mx-auto flex h-52 w-36 flex-col justify-between rounded-2xl p-3 shadow-2xl"
+                    style={{
+                      background:
+                        frame.id === "rainbow"
+                          ? "linear-gradient(135deg,#ec4899,#a855f7,#38bdf8,#22c55e,#facc15)"
+                          : frame.bg,
+                      border: `5px solid ${frame.accent}`,
+                    }}
+                  >
+                    <div className="grid grid-cols-2 gap-2">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={index} className="h-16 rounded-lg bg-white/20" />
+                      ))}
+                    </div>
+                    <div className="text-xs font-black text-white">NOLGURO</div>
+                  </div>
+
+                  <div className="mt-4 text-2xl font-black">
+                    {frame.emoji} {frame.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {phase === PHASE.READY && (
+          <section className="relative h-[86vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-2xl">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className="h-full w-full scale-x-[-1] object-cover opacity-60"
+            />
+
+            <button
+              onClick={goBack}
+              className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95"
+            >
+              <ArrowLeft size={30} />
+            </button>
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
+              <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
+              <p className="mt-5 text-2xl text-white/75">
+                화면을 보고 포즈를 준비해 주세요
+              </p>
+
+              <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
+                {readyCountdown}
+              </div>
+            </div>
           </section>
         )}
 
@@ -570,9 +782,7 @@ export default function App() {
                   {capturedPhotos.length}번째 컷 완료!
                 </div>
 
-                <p className="mt-3 text-2xl text-white/80">
-                  다음 포즈 준비!
-                </p>
+                <p className="mt-3 text-2xl text-white/80">다음 포즈 준비!</p>
               </div>
             )}
           </section>
