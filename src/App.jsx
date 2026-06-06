@@ -1,12 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Camera,
-  Download,
-  RotateCcw,
-  Sparkles,
-  ArrowLeft,
-  Check,
-} from "lucide-react";
+import { Camera, Download, RotateCcw, Sparkles, ArrowLeft, Check, Settings } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "./supabase";
 
@@ -21,15 +14,33 @@ const SELECT_TIME_LIMIT = 30;
 const RESULT_TIME_LIMIT = 60;
 const READY_TIME_LIMIT = 10;
 
+const PHASE = {
+  WAITING: "WAITING",
+  ADMIN: "ADMIN",
+  FRAME_TYPE_SELECT: "FRAME_TYPE_SELECT",
+  BASIC_COLOR_SELECT: "BASIC_COLOR_SELECT",
+  EVENT_FRAME_SELECT: "EVENT_FRAME_SELECT",
+  READY: "READY",
+  CAMERA: "CAMERA",
+  COUNTDOWN: "COUNTDOWN",
+  PREVIEW: "PREVIEW",
+  SELECT: "SELECT",
+  RESULT: "RESULT",
+};
+
 const FRAME_COLORS = [
-  { id: "purple", name: "퍼플", emoji: "💜", bg: "#05030a", accent: "#a855f7" },
-  { id: "pink", name: "핑크", emoji: "🩷", bg: "#170716", accent: "#ec4899" },
-  { id: "blue", name: "블루", emoji: "🩵", bg: "#06111f", accent: "#38bdf8" },
-  { id: "mint", name: "민트", emoji: "💚", bg: "#031713", accent: "#22c55e" },
-  { id: "yellow", name: "옐로우", emoji: "💛", bg: "#171203", accent: "#facc15" },
-  { id: "black", name: "블랙", emoji: "🖤", bg: "#000000", accent: "#ffffff" },
-  { id: "red", name: "레드", emoji: "❤️", bg: "#180404", accent: "#ef4444" },
-  { id: "rainbow", name: "스페셜", emoji: "🌈", bg: "#05030a", accent: "#f472b6" },
+  { id: "purple", name: "퍼플", emoji: "💜", bg: "#05030a", accent: "#a855f7", text: "#ffffff" },
+  { id: "pink", name: "핑크", emoji: "🩷", bg: "#170716", accent: "#ec4899", text: "#ffffff" },
+  { id: "blue", name: "블루", emoji: "🩵", bg: "#06111f", accent: "#38bdf8", text: "#ffffff" },
+  { id: "mint", name: "민트", emoji: "💚", bg: "#031713", accent: "#22c55e", text: "#ffffff" },
+  { id: "yellow", name: "옐로우", emoji: "💛", bg: "#171203", accent: "#facc15", text: "#ffffff" },
+  { id: "black", name: "블랙", emoji: "🖤", bg: "#000000", accent: "#ffffff", text: "#ffffff" },
+  { id: "red", name: "레드", emoji: "❤️", bg: "#180404", accent: "#ef4444", text: "#ffffff" },
+  { id: "rainbow", name: "스페셜", emoji: "🌈", bg: "#05030a", accent: "#f472b6", text: "#ffffff" },
+];
+
+const EVENT_FRAMES = [
+  { id: "eventComing", name: "이벤트 프레임", desc: "추후 디자인 프레임 추가 예정", bg: "#111827", accent: "#facc15", text: "#ffffff" },
 ];
 
 const FOUR_CUT_CONFIG = {
@@ -43,17 +54,6 @@ const FOUR_CUT_CONFIG = {
   ],
 };
 
-const PHASE = {
-  WAITING: "WAITING",
-  FRAME_SELECT: "FRAME_SELECT",
-  READY: "READY",
-  CAMERA: "CAMERA",
-  COUNTDOWN: "COUNTDOWN",
-  PREVIEW: "PREVIEW",
-  SELECT: "SELECT",
-  RESULT: "RESULT",
-};
-
 export default function App() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -61,6 +61,8 @@ export default function App() {
 
   const [phase, setPhase] = useState(PHASE.WAITING);
   const [selectedFrame, setSelectedFrame] = useState(FRAME_COLORS[0]);
+  const [mirrorResult, setMirrorResult] = useState(() => localStorage.getItem("mirrorResult") !== "false");
+
   const [capturedPhotos, setCapturedPhotos] = useState([]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [countdown, setCountdown] = useState(3);
@@ -81,16 +83,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
-      startCamera();
-    }
+    localStorage.setItem("mirrorResult", String(mirrorResult));
+  }, [mirrorResult]);
+
+  useEffect(() => {
+    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) startCamera();
   }, [phase]);
 
   useEffect(() => {
     if (phase !== PHASE.READY) return;
 
     setReadyCountdown(READY_TIME_LIMIT);
-
     const timer = setInterval(() => {
       setReadyCountdown((prev) => {
         if (prev <= 1) {
@@ -108,14 +111,9 @@ export default function App() {
 
   useEffect(() => {
     if (phase !== PHASE.CAMERA) return;
-    if (!autoShooting) return;
-    if (!cameraReady) return;
-    if (errorMessage) return;
+    if (!autoShooting || !cameraReady || errorMessage) return;
 
-    const timer = setTimeout(() => {
-      beginCountdown();
-    }, capturedPhotos.length === 0 ? 800 : 1200);
-
+    const timer = setTimeout(() => beginCountdown(), capturedPhotos.length === 0 ? 800 : 1200);
     return () => clearTimeout(timer);
   }, [phase, autoShooting, cameraReady, capturedPhotos.length, errorMessage]);
 
@@ -123,7 +121,6 @@ export default function App() {
     if (phase !== PHASE.SELECT) return;
 
     setSelectSeconds(SELECT_TIME_LIMIT);
-
     const timer = setInterval(() => {
       setSelectSeconds((prev) => {
         if (prev <= 1) {
@@ -142,7 +139,6 @@ export default function App() {
     if (phase !== PHASE.RESULT) return;
 
     setResetSeconds(RESULT_TIME_LIMIT);
-
     const timer = setInterval(() => {
       setResetSeconds((prev) => {
         if (prev <= 1) {
@@ -162,11 +158,7 @@ export default function App() {
       if (streamRef.current) return;
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 1080 },
-          height: { ideal: 1920 },
-        },
+        video: { facingMode: "user", width: { ideal: 1080 }, height: { ideal: 1920 } },
         audio: false,
       });
 
@@ -191,26 +183,10 @@ export default function App() {
     setCameraReady(false);
   }
 
-  function startShooting() {
-    setPhase(PHASE.FRAME_SELECT);
-  }
-
-  function selectFrameAndStart(frame) {
-    setSelectedFrame(frame);
-    setCapturedPhotos([]);
-    setSelectedIndexes([]);
-    setResultUrl("");
-    setPublicUrl("");
-    setUploadError("");
-    setErrorMessage("");
-    setAutoShooting(false);
-    setPhase(PHASE.READY);
-  }
-
   function goBack() {
-    if (phase === PHASE.FRAME_SELECT) {
-      setPhase(PHASE.WAITING);
-    }
+    if (phase === PHASE.ADMIN) setPhase(PHASE.WAITING);
+    if (phase === PHASE.FRAME_TYPE_SELECT) setPhase(PHASE.WAITING);
+    if (phase === PHASE.BASIC_COLOR_SELECT || phase === PHASE.EVENT_FRAME_SELECT) setPhase(PHASE.FRAME_TYPE_SELECT);
 
     if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
       stopCamera();
@@ -224,15 +200,24 @@ export default function App() {
       setPhase(PHASE.WAITING);
     }
 
-    if (phase === PHASE.RESULT) {
-      resetAll();
-    }
+    if (phase === PHASE.RESULT) resetAll();
+  }
+
+  function prepareShooting(frame) {
+    setSelectedFrame(frame);
+    setCapturedPhotos([]);
+    setSelectedIndexes([]);
+    setResultUrl("");
+    setPublicUrl("");
+    setUploadError("");
+    setErrorMessage("");
+    setAutoShooting(false);
+    setPhase(PHASE.READY);
   }
 
   function playShutter() {
     const sound = shutterRef.current;
     if (!sound) return;
-
     sound.currentTime = 0;
     sound.play().catch(() => {});
   }
@@ -244,19 +229,19 @@ export default function App() {
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 1080;
     canvas.height = video.videoHeight || 1920;
-
     const ctx = canvas.getContext("2d");
 
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (mirrorResult) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
 
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL("image/jpeg", 0.95);
   }
 
   function beginCountdown() {
     if (!cameraReady && !errorMessage) return;
-
     setCountdown(3);
     setPhase(PHASE.COUNTDOWN);
     runCountdown(3);
@@ -264,18 +249,15 @@ export default function App() {
 
   function runCountdown(number) {
     setCountdown(number);
-
     if (number <= 1) {
       setTimeout(shootOneCut, 900);
       return;
     }
-
     setTimeout(() => runCountdown(number - 1), 1000);
   }
 
   function shootOneCut() {
     playShutter();
-
     setFlash(true);
     setTimeout(() => setFlash(false), 180);
 
@@ -284,7 +266,6 @@ export default function App() {
 
     setCapturedPhotos((prev) => {
       const next = [...prev, image];
-
       setPhase(PHASE.PREVIEW);
 
       setTimeout(() => {
@@ -303,14 +284,8 @@ export default function App() {
 
   function toggleSelect(index) {
     setSelectedIndexes((prev) => {
-      if (prev.includes(index)) {
-        return prev.filter((item) => item !== index);
-      }
-
-      if (prev.length >= REQUIRED_SELECTIONS) {
-        return prev;
-      }
-
+      if (prev.includes(index)) return prev.filter((item) => item !== index);
+      if (prev.length >= REQUIRED_SELECTIONS) return prev;
       return [...prev, index];
     });
   }
@@ -328,7 +303,6 @@ export default function App() {
 
   async function confirmSelection() {
     if (selectedIndexes.length !== REQUIRED_SELECTIONS) return;
-
     await createResult(selectedIndexes);
   }
 
@@ -339,7 +313,6 @@ export default function App() {
     try {
       const selectedPhotos = indexes.map((index) => capturedPhotos[index]);
       const finalImage = await composeFinalImage(selectedPhotos);
-
       setResultUrl(finalImage);
 
       const uploadedUrl = await uploadResultImage(finalImage);
@@ -359,10 +332,7 @@ export default function App() {
     const binary = atob(base64);
     const array = new Uint8Array(binary.length);
 
-    for (let i = 0; i < binary.length; i++) {
-      array[i] = binary.charCodeAt(i);
-    }
-
+    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
     return new Blob([array], { type: mime });
   }
 
@@ -370,21 +340,14 @@ export default function App() {
     const blob = dataUrlToBlob(dataUrl);
     const fileName = `noguro-${Date.now()}-${crypto.randomUUID()}.png`;
 
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(fileName, blob, {
-        contentType: "image/png",
-        upsert: false,
-      });
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, blob, {
+      contentType: "image/png",
+      upsert: false,
+    });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    const { data } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(fileName);
-
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
     return data.publicUrl;
   }
 
@@ -433,23 +396,14 @@ export default function App() {
     }
 
     ctx.save();
-
     roundedRect(ctx, slot.x, slot.y, slot.width, slot.height, 24);
     ctx.clip();
-
-    ctx.drawImage(
-      img,
-      slot.x + offsetX,
-      slot.y + offsetY,
-      drawWidth,
-      drawHeight
-    );
-
+    ctx.drawImage(img, slot.x + offsetX, slot.y + offsetY, drawWidth, drawHeight);
     ctx.restore();
   }
 
-  function drawDynamicFrame(ctx, frame) {
-    const { canvasWidth, canvasHeight, slots } = FOUR_CUT_CONFIG;
+  function drawFrameBackground(ctx, frame) {
+    const { canvasWidth, canvasHeight } = FOUR_CUT_CONFIG;
 
     if (frame.id === "rainbow") {
       const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
@@ -464,8 +418,22 @@ export default function App() {
     }
 
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
 
-    ctx.fillStyle = "#ffffff";
+  function drawFrameOverlay(ctx, frame) {
+    const { canvasWidth, slots } = FOUR_CUT_CONFIG;
+    const textColor = frame.text || "#ffffff";
+
+    slots.forEach((slot) => {
+      ctx.save();
+      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
+      ctx.strokeStyle = frame.accent;
+      ctx.lineWidth = 10;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.fillStyle = textColor;
     ctx.font = "bold 78px sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("NOLGURO", 70, 105);
@@ -488,15 +456,6 @@ export default function App() {
     ctx.textAlign = "center";
     ctx.font = "bold 26px sans-serif";
     ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
-
-    slots.forEach((slot) => {
-      ctx.save();
-      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
-      ctx.strokeStyle = frame.accent;
-      ctx.lineWidth = 10;
-      ctx.stroke();
-      ctx.restore();
-    });
   }
 
   async function composeFinalImage(photoList) {
@@ -506,32 +465,22 @@ export default function App() {
 
     const ctx = canvas.getContext("2d");
 
-    drawDynamicFrame(ctx, selectedFrame);
+    drawFrameBackground(ctx, selectedFrame);
 
     for (let i = 0; i < photoList.length; i++) {
       const img = await loadImage(photoList[i]);
       const slot = FOUR_CUT_CONFIG.slots[i];
-
       drawCoverImage(ctx, img, slot);
     }
 
-    drawDynamicFrame(ctx, selectedFrame);
-
-    for (let i = 0; i < photoList.length; i++) {
-      const img = await loadImage(photoList[i]);
-      const slot = FOUR_CUT_CONFIG.slots[i];
-
-      drawCoverImage(ctx, img, slot);
-    }
-
-    drawDynamicFrameTextOnly(ctx, selectedFrame);
+    drawFrameOverlay(ctx, selectedFrame);
 
     const today = new Date();
-    const dateText = `${today.getFullYear()}.${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
+    const dateText = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(
+      today.getDate()
+    ).padStart(2, "0")}`;
 
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = selectedFrame.text || "#ffffff";
     ctx.font = "bold 34px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(dateText, canvas.width / 2, 1668);
@@ -539,46 +488,8 @@ export default function App() {
     return canvas.toDataURL("image/png");
   }
 
-  function drawDynamicFrameTextOnly(ctx, frame) {
-    const { canvasWidth, slots } = FOUR_CUT_CONFIG;
-
-    slots.forEach((slot) => {
-      ctx.save();
-      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
-      ctx.strokeStyle = frame.accent;
-      ctx.lineWidth = 10;
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 78px sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("NOLGURO", 70, 105);
-
-    ctx.font = "bold 28px sans-serif";
-    ctx.save();
-    ctx.translate(1128, 900);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillText("NOLGURO", 0, 0);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(95, 1320);
-    ctx.rotate(Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillText("NOLGURO", 0, 0);
-    ctx.restore();
-
-    ctx.textAlign = "center";
-    ctx.font = "bold 26px sans-serif";
-    ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
-  }
-
   function downloadResult() {
     if (!resultUrl) return;
-
     const a = document.createElement("a");
     a.href = resultUrl;
     a.download = `noguro-necut-${Date.now()}.png`;
@@ -587,7 +498,6 @@ export default function App() {
 
   function resetAll() {
     stopCamera();
-
     setPhase(PHASE.WAITING);
     setCapturedPhotos([]);
     setSelectedIndexes([]);
@@ -611,7 +521,14 @@ export default function App() {
 
       <main className="relative z-10 flex min-h-screen items-center justify-center p-6">
         {phase === PHASE.WAITING && (
-          <section className="w-full max-w-4xl text-center">
+          <section className="relative w-full max-w-4xl text-center">
+            <button
+              onClick={() => setPhase(PHASE.ADMIN)}
+              className="absolute right-0 top-0 rounded-full bg-white/10 p-4 text-white/70 active:scale-95"
+            >
+              <Settings size={24} />
+            </button>
+
             <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 shadow-2xl backdrop-blur">
               <Camera size={44} className="text-pink-300" />
             </div>
@@ -625,20 +542,14 @@ export default function App() {
             <div className="mx-auto mt-12 w-52 rotate-[-3deg] rounded-3xl bg-white p-4 shadow-2xl">
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-28 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950"
-                  />
+                  <div key={index} className="h-28 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950" />
                 ))}
               </div>
-
-              <div className="mt-4 text-center text-xl font-black text-black">
-                4컷
-              </div>
+              <div className="mt-4 text-center text-xl font-black text-black">4컷</div>
             </div>
 
             <button
-              onClick={startShooting}
+              onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
               className="mt-12 inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-16 py-6 text-3xl font-bold shadow-2xl transition hover:scale-105 active:scale-95"
             >
               <Camera size={34} /> 촬영 시작하기
@@ -646,40 +557,71 @@ export default function App() {
           </section>
         )}
 
-        {phase === PHASE.FRAME_SELECT && (
+        {phase === PHASE.ADMIN && (
+          <section className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl">
+            <BackButton onClick={goBack} />
+            <h2 className="text-center text-5xl font-black">관리자 설정</h2>
+
+            <div className="mt-10 rounded-3xl bg-white/10 p-8">
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <div className="text-3xl font-black">최종 사진 좌우반전</div>
+                  <p className="mt-2 text-white/65">ON이면 화면에서 본 모습 그대로 저장됩니다.</p>
+                </div>
+
+                <button
+                  onClick={() => setMirrorResult((prev) => !prev)}
+                  className={`rounded-full px-8 py-4 text-2xl font-black active:scale-95 ${
+                    mirrorResult ? "bg-pink-500 text-white" : "bg-white text-black"
+                  }`}
+                >
+                  {mirrorResult ? "ON" : "OFF"}
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {phase === PHASE.FRAME_TYPE_SELECT && (
+          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+            <BackButton onClick={goBack} />
+            <h2 className="text-5xl font-black">프레임 종류를 선택하세요</h2>
+
+            <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
+              <button
+                onClick={() => setPhase(PHASE.BASIC_COLOR_SELECT)}
+                className="rounded-3xl border border-white/15 bg-white/10 p-8 shadow-xl active:scale-95"
+              >
+                <div className="text-6xl">🎨</div>
+                <div className="mt-5 text-4xl font-black">기본 프레임</div>
+                <p className="mt-3 text-xl text-white/70">프레임 색상을 선택할 수 있어요</p>
+              </button>
+
+              <button
+                onClick={() => setPhase(PHASE.EVENT_FRAME_SELECT)}
+                className="rounded-3xl border border-white/15 bg-white/10 p-8 shadow-xl active:scale-95"
+              >
+                <div className="text-6xl">🎉</div>
+                <div className="mt-5 text-4xl font-black">이벤트 프레임</div>
+                <p className="mt-3 text-xl text-white/70">행사별 디자인 프레임을 선택해요</p>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {phase === PHASE.BASIC_COLOR_SELECT && (
           <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
-
-            <h2 className="text-5xl font-black">프레임 색상을 선택하세요</h2>
-            <p className="mt-3 text-xl text-white/70">
-              원하는 색상을 고르면 촬영이 시작됩니다.
-            </p>
+            <h2 className="text-5xl font-black">기본 프레임 색상을 선택하세요</h2>
 
             <div className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-4">
               {FRAME_COLORS.map((frame) => (
                 <button
                   key={frame.id}
-                  onClick={() => selectFrameAndStart(frame)}
-                  className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl transition active:scale-95"
+                  onClick={() => prepareShooting(frame)}
+                  className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl active:scale-95"
                 >
-                  <div
-                    className="mx-auto flex h-52 w-36 flex-col justify-between rounded-2xl p-3 shadow-2xl"
-                    style={{
-                      background:
-                        frame.id === "rainbow"
-                          ? "linear-gradient(135deg,#ec4899,#a855f7,#38bdf8,#22c55e,#facc15)"
-                          : frame.bg,
-                      border: `5px solid ${frame.accent}`,
-                    }}
-                  >
-                    <div className="grid grid-cols-2 gap-2">
-                      {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className="h-16 rounded-lg bg-white/20" />
-                      ))}
-                    </div>
-                    <div className="text-xs font-black text-white">NOLGURO</div>
-                  </div>
-
+                  <FrameMini frame={frame} />
                   <div className="mt-4 text-2xl font-black">
                     {frame.emoji} {frame.name}
                   </div>
@@ -689,54 +631,44 @@ export default function App() {
           </section>
         )}
 
-        {phase === PHASE.READY && (
-          <section className="relative h-[86vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-2xl">
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className="h-full w-full scale-x-[-1] object-cover opacity-60"
-            />
+        {phase === PHASE.EVENT_FRAME_SELECT && (
+          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+            <BackButton onClick={goBack} />
+            <h2 className="text-5xl font-black">이벤트 프레임을 선택하세요</h2>
+            <p className="mt-3 text-xl text-white/70">이벤트 프레임은 색상이 고정됩니다.</p>
 
-            <button
-              onClick={goBack}
-              className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95"
-            >
-              <ArrowLeft size={30} />
-            </button>
-
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
-              <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
-              <p className="mt-5 text-2xl text-white/75">
-                화면을 보고 포즈를 준비해 주세요
-              </p>
-
-              <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
-                {readyCountdown}
-              </div>
+            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+              {EVENT_FRAMES.map((frame) => (
+                <button
+                  key={frame.id}
+                  onClick={() => prepareShooting({ ...frame, event: true })}
+                  className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl active:scale-95"
+                >
+                  <FrameMini frame={frame} />
+                  <div className="mt-5 text-2xl font-black">{frame.name}</div>
+                  <div className="mt-2 text-white/65">{frame.desc}</div>
+                </button>
+              ))}
             </div>
           </section>
         )}
 
+        {phase === PHASE.READY && (
+          <CameraStage videoRef={videoRef} goBack={goBack} dim>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
+              <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
+              <p className="mt-5 text-2xl text-white/75">화면을 보고 포즈를 준비해 주세요</p>
+              <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
+                {readyCountdown}
+              </div>
+            </div>
+          </CameraStage>
+        )}
+
         {[PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase) && (
-          <section className="relative h-[86vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-2xl">
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className="h-full w-full scale-x-[-1] object-cover"
-            />
-
-            <button
-              onClick={goBack}
-              className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95"
-            >
-              <ArrowLeft size={30} />
-            </button>
-
+          <CameraStage videoRef={videoRef} goBack={goBack}>
             <div className="absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/70 px-6 py-3 text-xl font-bold backdrop-blur">
-              CUT {Math.min(capturedPhotos.length + 1, TOTAL_SHOTS)} /{" "}
-              {TOTAL_SHOTS}
+              CUT {Math.min(capturedPhotos.length + 1, TOTAL_SHOTS)} / {TOTAL_SHOTS}
             </div>
 
             {errorMessage && (
@@ -747,16 +679,10 @@ export default function App() {
 
             {phase === PHASE.CAMERA && !errorMessage && (
               <div className="absolute bottom-8 left-1/2 w-[90%] max-w-xl -translate-x-1/2 text-center">
-                <button
-                  disabled
-                  className="w-full rounded-full bg-white/70 py-5 text-3xl font-black text-black shadow-xl"
-                >
+                <button disabled className="w-full rounded-full bg-white/70 py-5 text-3xl font-black text-black shadow-xl">
                   자동 촬영 진행 중
                 </button>
-
-                <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-lg text-white/85 backdrop-blur">
-                  총 6장을 촬영합니다
-                </p>
+                <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-lg text-white/85 backdrop-blur">총 6장을 촬영합니다</p>
               </div>
             )}
 
@@ -772,20 +698,12 @@ export default function App() {
 
             {phase === PHASE.PREVIEW && capturedPhotos.length > 0 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm">
-                <img
-                  src={capturedPhotos[capturedPhotos.length - 1]}
-                  alt="방금 찍은 사진"
-                  className="max-h-[60vh] rounded-3xl border-4 border-white object-contain shadow-2xl"
-                />
-
-                <div className="mt-8 text-4xl font-black text-pink-200">
-                  {capturedPhotos.length}번째 컷 완료!
-                </div>
-
+                <img src={capturedPhotos[capturedPhotos.length - 1]} alt="방금 찍은 사진" className="max-h-[60vh] rounded-3xl border-4 border-white object-contain shadow-2xl" />
+                <div className="mt-8 text-4xl font-black text-pink-200">{capturedPhotos.length}번째 컷 완료!</div>
                 <p className="mt-3 text-2xl text-white/80">다음 포즈 준비!</p>
               </div>
             )}
-          </section>
+          </CameraStage>
         )}
 
         {phase === PHASE.SELECT && (
@@ -794,20 +712,12 @@ export default function App() {
 
             <div className="flex items-center justify-between gap-6">
               <div>
-                <h2 className="text-4xl font-black">
-                  마음에 드는 사진 4장을 선택하세요
-                </h2>
-
-                <p className="mt-2 text-white/70">
-                  선택한 순서대로 네컷에 들어갑니다.
-                </p>
+                <h2 className="text-4xl font-black">마음에 드는 사진 4장을 선택하세요</h2>
+                <p className="mt-2 text-white/70">선택한 순서대로 네컷에 들어갑니다.</p>
               </div>
-
               <div className="rounded-3xl bg-white/10 px-8 py-5 text-center">
                 <div className="text-white/60">남은 시간</div>
-                <div className="text-5xl font-black text-pink-200">
-                  00:{String(selectSeconds).padStart(2, "0")}
-                </div>
+                <div className="text-5xl font-black text-pink-200">00:{String(selectSeconds).padStart(2, "0")}</div>
               </div>
             </div>
 
@@ -821,17 +731,10 @@ export default function App() {
                     key={index}
                     onClick={() => toggleSelect(index)}
                     className={`relative overflow-hidden rounded-3xl border-4 transition active:scale-95 ${
-                      selected
-                        ? "border-pink-400 shadow-[0_0_30px_rgba(236,72,153,0.45)]"
-                        : "border-white/15"
+                      selected ? "border-pink-400 shadow-[0_0_30px_rgba(236,72,153,0.45)]" : "border-white/15"
                     }`}
                   >
-                    <img
-                      src={photo}
-                      alt={`촬영 사진 ${index + 1}`}
-                      className="aspect-[3/4] w-full object-cover"
-                    />
-
+                    <img src={photo} alt={`촬영 사진 ${index + 1}`} className="aspect-[3/4] w-full object-cover" />
                     {selected && (
                       <div className="absolute right-4 top-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-500 text-2xl font-black">
                         {order}
@@ -846,9 +749,7 @@ export default function App() {
               onClick={confirmSelection}
               disabled={selectedIndexes.length !== REQUIRED_SELECTIONS}
               className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full py-5 text-3xl font-bold shadow-xl active:scale-95 ${
-                selectedIndexes.length === REQUIRED_SELECTIONS
-                  ? "bg-gradient-to-r from-violet-500 to-pink-500"
-                  : "bg-white/15 text-white/40"
+                selectedIndexes.length === REQUIRED_SELECTIONS ? "bg-gradient-to-r from-violet-500 to-pink-500" : "bg-white/15 text-white/40"
               }`}
             >
               <Check size={32} /> {selectedIndexes.length}/4 선택 완료
@@ -859,62 +760,31 @@ export default function App() {
         {phase === PHASE.RESULT && (
           <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl md:grid-cols-[1fr_1fr]">
             <div className="flex items-center justify-center rounded-3xl bg-white/5 p-5">
-              {resultUrl && (
-                <img
-                  src={resultUrl}
-                  alt="완성된 네컷"
-                  className="max-h-[75vh] rounded-2xl object-contain shadow-2xl"
-                />
-              )}
+              {resultUrl && <img src={resultUrl} alt="완성된 네컷" className="max-h-[75vh] rounded-2xl object-contain shadow-2xl" />}
             </div>
 
             <div className="flex flex-col items-center justify-center text-center">
               <Sparkles className="mb-5 text-pink-300" size={46} />
-
               <h2 className="text-4xl font-black">네컷 완성!</h2>
-
-              <p className="mt-4 text-2xl text-white/80">
-                휴대폰 카메라로 QR을 찍어 사진을 저장하세요
-              </p>
+              <p className="mt-4 text-2xl text-white/80">휴대폰 카메라로 QR을 찍어 사진을 저장하세요</p>
 
               <div className="mt-8 rounded-3xl bg-white p-5 shadow-2xl">
-                <QRCodeCanvas
-                  value={publicUrl || "업로드 중입니다."}
-                  size={260}
-                  includeMargin
-                />
+                <QRCodeCanvas value={publicUrl || "업로드 중입니다."} size={260} includeMargin />
               </div>
 
-              {uploading && (
-                <p className="mt-4 text-lg text-pink-200">
-                  QR 저장용 링크를 만드는 중입니다...
-                </p>
-              )}
+              {uploading && <p className="mt-4 text-lg text-pink-200">QR 저장용 링크를 만드는 중입니다...</p>}
+              {uploadError && <p className="mt-4 max-w-md text-lg text-red-300">{uploadError}</p>}
 
-              {uploadError && (
-                <p className="mt-4 max-w-md text-lg text-red-300">
-                  {uploadError}
-                </p>
-              )}
-
-              <button
-                onClick={downloadResult}
-                className="mt-7 inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-xl font-bold text-black active:scale-95"
-              >
+              <button onClick={downloadResult} className="mt-7 inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-xl font-bold text-black active:scale-95">
                 <Download size={24} /> 이 기기에 저장하기
               </button>
 
               <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 px-12 py-7">
                 <div className="text-white/60">남은 시간</div>
-                <div className="mt-2 text-6xl font-black text-pink-200">
-                  00:{String(resetSeconds).padStart(2, "0")}
-                </div>
+                <div className="mt-2 text-6xl font-black text-pink-200">00:{String(resetSeconds).padStart(2, "0")}</div>
               </div>
 
-              <button
-                onClick={resetAll}
-                className="mt-7 inline-flex items-center gap-2 text-white/70 underline"
-              >
+              <button onClick={resetAll} className="mt-7 inline-flex items-center gap-2 text-white/70 underline">
                 <RotateCcw size={18} /> 처음 화면으로 돌아가기
               </button>
             </div>
@@ -927,11 +797,51 @@ export default function App() {
 
 function BackButton({ onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white/85 active:scale-95"
-    >
+    <button onClick={onClick} className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white/85 active:scale-95">
       <ArrowLeft size={22} /> 뒤로가기
     </button>
+  );
+}
+
+function FrameMini({ frame }) {
+  return (
+    <div
+      className="mx-auto flex h-52 w-36 flex-col justify-between rounded-2xl p-3 shadow-2xl"
+      style={{
+        background:
+          frame.id === "rainbow"
+            ? "linear-gradient(135deg,#ec4899,#a855f7,#38bdf8,#22c55e,#facc15)"
+            : frame.bg,
+        border: `5px solid ${frame.accent}`,
+      }}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="h-16 rounded-lg bg-white/20" />
+        ))}
+      </div>
+      <div className="text-xs font-black" style={{ color: frame.text || "#ffffff" }}>
+        NOLGURO
+      </div>
+    </div>
+  );
+}
+
+function CameraStage({ videoRef, goBack, children, dim = false }) {
+  return (
+    <section className="relative h-[86vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-2xl">
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        className={`h-full w-full scale-x-[-1] object-cover ${dim ? "opacity-60" : ""}`}
+      />
+
+      <button onClick={goBack} className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95">
+        <ArrowLeft size={30} />
+      </button>
+
+      {children}
+    </section>
   );
 }
