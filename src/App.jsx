@@ -37,51 +37,51 @@ const PHASE = {
 };
 
 const FRAME_COLORS = [
-  {
+   {
     id: "purple",
     name: "퍼플",
     emoji: "💜",
-    bg: "#05030a",
-    accent: "#a855f7",
+    bg: "#7c3aed",
+    accent: "#ffffff",
     text: "#ffffff",
   },
   {
     id: "pink",
     name: "핑크",
     emoji: "🩷",
-    bg: "#170716",
-    accent: "#ec4899",
+    bg: "#ec4899",
+    accent: "#ffffff",
     text: "#ffffff",
   },
   {
     id: "blue",
     name: "블루",
     emoji: "🩵",
-    bg: "#06111f",
-    accent: "#38bdf8",
+    bg: "#38bdf8",
+    accent: "#ffffff",
     text: "#ffffff",
   },
   {
     id: "mint",
     name: "민트",
     emoji: "💚",
-    bg: "#031713",
-    accent: "#22c55e",
+    bg: "#22c55e",
+    accent: "#ffffff",
     text: "#ffffff",
   },
   {
     id: "yellow",
     name: "옐로우",
     emoji: "💛",
-    bg: "#171203",
-    accent: "#facc15",
-    text: "#ffffff",
+    bg: "#facc15",
+    accent: "#ffffff",
+    text: "#111827",
   },
   {
     id: "black",
     name: "블랙",
     emoji: "🖤",
-    bg: "#000000",
+    bg: "#111827",
     accent: "#ffffff",
     text: "#ffffff",
   },
@@ -89,8 +89,8 @@ const FRAME_COLORS = [
     id: "red",
     name: "레드",
     emoji: "❤️",
-    bg: "#180404",
-    accent: "#ef4444",
+    bg: "#ef4444",
+    accent: "#ffffff",
     text: "#ffffff",
   },
   {
@@ -98,38 +98,9 @@ const FRAME_COLORS = [
     name: "스페셜",
     emoji: "🌈",
     bg: "#05030a",
-    accent: "#f472b6",
+    accent: "#ffffff",
     text: "#ffffff",
   },
-];
-
-const EVENT_FRAMES = [
-  {
-    id: "eventComing",
-    name: "이벤트 프레임",
-    desc: "현재는 기본 이벤트 색상 프레임입니다",
-    bg: "#111827",
-    accent: "#facc15",
-    text: "#ffffff",
-    event: true,
-  },
-
-  /*
-  나중에 이벤트 PNG 프레임을 추가할 때는
-  public/frames/event/christmas.png 파일을 넣고 아래 주석을 해제하면 됨.
-
-  {
-    id: "christmas",
-    name: "크리스마스 프레임",
-    desc: "크리스마스 행사 전용 프레임",
-    type: "image",
-    image: "/frames/event/christmas.png",
-    bg: "#ffffff",
-    accent: "#ef4444",
-    text: "#ffffff",
-    event: true,
-  },
-  */
 ];
 
 const FOUR_CUT_CONFIG = {
