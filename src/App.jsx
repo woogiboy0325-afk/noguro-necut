@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Camera, Download, RotateCcw, Sparkles, ArrowLeft, Check, Settings } from "lucide-react";
+import {
+  Camera,
+  Download,
+  RotateCcw,
+  Sparkles,
+  ArrowLeft,
+  Check,
+  Settings,
+} from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "./supabase";
 
@@ -40,7 +48,14 @@ const FRAME_COLORS = [
 ];
 
 const EVENT_FRAMES = [
-  { id: "eventComing", name: "이벤트 프레임", desc: "추후 디자인 프레임 추가 예정", bg: "#111827", accent: "#facc15", text: "#ffffff" },
+  {
+    id: "eventComing",
+    name: "이벤트 프레임",
+    desc: "추후 디자인 프레임 추가 예정",
+    bg: "#111827",
+    accent: "#facc15",
+    text: "#ffffff",
+  },
 ];
 
 const FOUR_CUT_CONFIG = {
@@ -61,7 +76,9 @@ export default function App() {
 
   const [phase, setPhase] = useState(PHASE.WAITING);
   const [selectedFrame, setSelectedFrame] = useState(FRAME_COLORS[0]);
-  const [mirrorResult, setMirrorResult] = useState(() => localStorage.getItem("mirrorResult") !== "false");
+  const [mirrorResult, setMirrorResult] = useState(
+    () => localStorage.getItem("mirrorResult") !== "false"
+  );
 
   const [capturedPhotos, setCapturedPhotos] = useState([]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
@@ -78,6 +95,8 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [autoShooting, setAutoShooting] = useState(false);
 
+  const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
+
   useEffect(() => {
     shutterRef.current = new Audio(SHUTTER_SOUND_PATH);
   }, []);
@@ -87,13 +106,14 @@ export default function App() {
   }, [mirrorResult]);
 
   useEffect(() => {
-    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) startCamera();
+    if (isCameraPhase) startCamera();
   }, [phase]);
 
   useEffect(() => {
     if (phase !== PHASE.READY) return;
 
     setReadyCountdown(READY_TIME_LIMIT);
+
     const timer = setInterval(() => {
       setReadyCountdown((prev) => {
         if (prev <= 1) {
@@ -102,6 +122,7 @@ export default function App() {
           setPhase(PHASE.CAMERA);
           return READY_TIME_LIMIT;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -111,9 +132,14 @@ export default function App() {
 
   useEffect(() => {
     if (phase !== PHASE.CAMERA) return;
-    if (!autoShooting || !cameraReady || errorMessage) return;
+    if (!autoShooting) return;
+    if (!cameraReady) return;
+    if (errorMessage) return;
 
-    const timer = setTimeout(() => beginCountdown(), capturedPhotos.length === 0 ? 800 : 1200);
+    const timer = setTimeout(() => {
+      beginCountdown();
+    }, capturedPhotos.length === 0 ? 800 : 1200);
+
     return () => clearTimeout(timer);
   }, [phase, autoShooting, cameraReady, capturedPhotos.length, errorMessage]);
 
@@ -121,6 +147,7 @@ export default function App() {
     if (phase !== PHASE.SELECT) return;
 
     setSelectSeconds(SELECT_TIME_LIMIT);
+
     const timer = setInterval(() => {
       setSelectSeconds((prev) => {
         if (prev <= 1) {
@@ -128,6 +155,7 @@ export default function App() {
           autoCompleteSelection();
           return SELECT_TIME_LIMIT;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -139,6 +167,7 @@ export default function App() {
     if (phase !== PHASE.RESULT) return;
 
     setResetSeconds(RESULT_TIME_LIMIT);
+
     const timer = setInterval(() => {
       setResetSeconds((prev) => {
         if (prev <= 1) {
@@ -146,6 +175,7 @@ export default function App() {
           resetAll();
           return RESULT_TIME_LIMIT;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -153,25 +183,42 @@ export default function App() {
     return () => clearInterval(timer);
   }, [phase]);
 
+  async function attachStreamToVideo(stream) {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+
+    await video.play();
+    setCameraReady(true);
+  }
+
   async function startCamera() {
     try {
-      if (streamRef.current) return;
+      setErrorMessage("");
+
+      if (streamRef.current) {
+        await attachStreamToVideo(streamRef.current);
+        return;
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1080 }, height: { ideal: 1920 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+        },
         audio: false,
       });
 
       streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraReady(true);
-      }
+      await attachStreamToVideo(stream);
     } catch (error) {
       console.error(error);
       setErrorMessage("카메라 권한을 허용해 주세요.");
+      setCameraReady(false);
     }
   }
 
@@ -180,15 +227,22 @@ export default function App() {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
     setCameraReady(false);
   }
 
   function goBack() {
     if (phase === PHASE.ADMIN) setPhase(PHASE.WAITING);
     if (phase === PHASE.FRAME_TYPE_SELECT) setPhase(PHASE.WAITING);
-    if (phase === PHASE.BASIC_COLOR_SELECT || phase === PHASE.EVENT_FRAME_SELECT) setPhase(PHASE.FRAME_TYPE_SELECT);
+    if (phase === PHASE.BASIC_COLOR_SELECT || phase === PHASE.EVENT_FRAME_SELECT) {
+      setPhase(PHASE.FRAME_TYPE_SELECT);
+    }
 
-    if ([PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase)) {
+    if (isCameraPhase) {
       stopCamera();
       setCapturedPhotos([]);
       setAutoShooting(false);
@@ -212,23 +266,26 @@ export default function App() {
     setUploadError("");
     setErrorMessage("");
     setAutoShooting(false);
+    setCameraReady(false);
     setPhase(PHASE.READY);
   }
 
   function playShutter() {
     const sound = shutterRef.current;
     if (!sound) return;
+
     sound.currentTime = 0;
     sound.play().catch(() => {});
   }
 
   function captureFromVideo() {
     const video = videoRef.current;
-    if (!video) return null;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return null;
 
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1080;
-    canvas.height = video.videoHeight || 1920;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
     const ctx = canvas.getContext("2d");
 
     if (mirrorResult) {
@@ -237,11 +294,13 @@ export default function App() {
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
     return canvas.toDataURL("image/jpeg", 0.95);
   }
 
   function beginCountdown() {
-    if (!cameraReady && !errorMessage) return;
+    if (!cameraReady || errorMessage) return;
+
     setCountdown(3);
     setPhase(PHASE.COUNTDOWN);
     runCountdown(3);
@@ -249,23 +308,30 @@ export default function App() {
 
   function runCountdown(number) {
     setCountdown(number);
+
     if (number <= 1) {
       setTimeout(shootOneCut, 900);
       return;
     }
+
     setTimeout(() => runCountdown(number - 1), 1000);
   }
 
   function shootOneCut() {
     playShutter();
+
     setFlash(true);
     setTimeout(() => setFlash(false), 180);
 
     const image = captureFromVideo();
-    if (!image) return;
+    if (!image) {
+      setPhase(PHASE.CAMERA);
+      return;
+    }
 
     setCapturedPhotos((prev) => {
       const next = [...prev, image];
+
       setPhase(PHASE.PREVIEW);
 
       setTimeout(() => {
@@ -313,6 +379,7 @@ export default function App() {
     try {
       const selectedPhotos = indexes.map((index) => capturedPhotos[index]);
       const finalImage = await composeFinalImage(selectedPhotos);
+
       setResultUrl(finalImage);
 
       const uploadedUrl = await uploadResultImage(finalImage);
@@ -332,7 +399,10 @@ export default function App() {
     const binary = atob(base64);
     const array = new Uint8Array(binary.length);
 
-    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+    for (let i = 0; i < binary.length; i++) {
+      array[i] = binary.charCodeAt(i);
+    }
+
     return new Blob([array], { type: mime });
   }
 
@@ -340,10 +410,12 @@ export default function App() {
     const blob = dataUrlToBlob(dataUrl);
     const fileName = `noguro-${Date.now()}-${crypto.randomUUID()}.png`;
 
-    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, blob, {
-      contentType: "image/png",
-      upsert: false,
-    });
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, blob, {
+        contentType: "image/png",
+        upsert: false,
+      });
 
     if (error) throw error;
 
@@ -439,6 +511,7 @@ export default function App() {
     ctx.fillText("NOLGURO", 70, 105);
 
     ctx.font = "bold 28px sans-serif";
+
     ctx.save();
     ctx.translate(1128, 900);
     ctx.rotate(-Math.PI / 2);
@@ -476,9 +549,9 @@ export default function App() {
     drawFrameOverlay(ctx, selectedFrame);
 
     const today = new Date();
-    const dateText = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(
-      today.getDate()
-    ).padStart(2, "0")}`;
+    const dateText = `${today.getFullYear()}.${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
 
     ctx.fillStyle = selectedFrame.text || "#ffffff";
     ctx.font = "bold 34px sans-serif";
@@ -490,6 +563,7 @@ export default function App() {
 
   function downloadResult() {
     if (!resultUrl) return;
+
     const a = document.createElement("a");
     a.href = resultUrl;
     a.download = `noguro-necut-${Date.now()}.png`;
@@ -498,6 +572,7 @@ export default function App() {
 
   function resetAll() {
     stopCamera();
+
     setPhase(PHASE.WAITING);
     setCapturedPhotos([]);
     setSelectedIndexes([]);
@@ -542,10 +617,16 @@ export default function App() {
             <div className="mx-auto mt-12 w-52 rotate-[-3deg] rounded-3xl bg-white p-4 shadow-2xl">
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="h-28 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950" />
+                  <div
+                    key={index}
+                    className="h-28 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950"
+                  />
                 ))}
               </div>
-              <div className="mt-4 text-center text-xl font-black text-black">4컷</div>
+
+              <div className="mt-4 text-center text-xl font-black text-black">
+                4컷
+              </div>
             </div>
 
             <button
@@ -560,13 +641,16 @@ export default function App() {
         {phase === PHASE.ADMIN && (
           <section className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
+
             <h2 className="text-center text-5xl font-black">관리자 설정</h2>
 
             <div className="mt-10 rounded-3xl bg-white/10 p-8">
               <div className="flex items-center justify-between gap-6">
                 <div>
                   <div className="text-3xl font-black">최종 사진 좌우반전</div>
-                  <p className="mt-2 text-white/65">ON이면 화면에서 본 모습 그대로 저장됩니다.</p>
+                  <p className="mt-2 text-white/65">
+                    ON이면 화면에서 본 모습 그대로 저장됩니다.
+                  </p>
                 </div>
 
                 <button
@@ -585,6 +669,7 @@ export default function App() {
         {phase === PHASE.FRAME_TYPE_SELECT && (
           <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
+
             <h2 className="text-5xl font-black">프레임 종류를 선택하세요</h2>
 
             <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -594,7 +679,9 @@ export default function App() {
               >
                 <div className="text-6xl">🎨</div>
                 <div className="mt-5 text-4xl font-black">기본 프레임</div>
-                <p className="mt-3 text-xl text-white/70">프레임 색상을 선택할 수 있어요</p>
+                <p className="mt-3 text-xl text-white/70">
+                  프레임 색상을 선택할 수 있어요
+                </p>
               </button>
 
               <button
@@ -603,7 +690,9 @@ export default function App() {
               >
                 <div className="text-6xl">🎉</div>
                 <div className="mt-5 text-4xl font-black">이벤트 프레임</div>
-                <p className="mt-3 text-xl text-white/70">행사별 디자인 프레임을 선택해요</p>
+                <p className="mt-3 text-xl text-white/70">
+                  행사별 디자인 프레임을 선택해요
+                </p>
               </button>
             </div>
           </section>
@@ -612,6 +701,7 @@ export default function App() {
         {phase === PHASE.BASIC_COLOR_SELECT && (
           <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
+
             <h2 className="text-5xl font-black">기본 프레임 색상을 선택하세요</h2>
 
             <div className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-4">
@@ -622,6 +712,7 @@ export default function App() {
                   className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl active:scale-95"
                 >
                   <FrameMini frame={frame} />
+
                   <div className="mt-4 text-2xl font-black">
                     {frame.emoji} {frame.name}
                   </div>
@@ -634,8 +725,11 @@ export default function App() {
         {phase === PHASE.EVENT_FRAME_SELECT && (
           <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
+
             <h2 className="text-5xl font-black">이벤트 프레임을 선택하세요</h2>
-            <p className="mt-3 text-xl text-white/70">이벤트 프레임은 색상이 고정됩니다.</p>
+            <p className="mt-3 text-xl text-white/70">
+              이벤트 프레임은 색상이 고정됩니다.
+            </p>
 
             <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
               {EVENT_FRAMES.map((frame) => (
@@ -645,6 +739,7 @@ export default function App() {
                   className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl active:scale-95"
                 >
                   <FrameMini frame={frame} />
+
                   <div className="mt-5 text-2xl font-black">{frame.name}</div>
                   <div className="mt-2 text-white/65">{frame.desc}</div>
                 </button>
@@ -653,55 +748,75 @@ export default function App() {
           </section>
         )}
 
-        {phase === PHASE.READY && (
-          <CameraStage videoRef={videoRef} goBack={goBack} dim>
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
-              <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
-              <p className="mt-5 text-2xl text-white/75">화면을 보고 포즈를 준비해 주세요</p>
-              <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
-                {readyCountdown}
-              </div>
-            </div>
-          </CameraStage>
-        )}
+        {isCameraPhase && (
+          <CameraStage videoRef={videoRef} goBack={goBack} dim={phase === PHASE.READY}>
+            {phase === PHASE.READY && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
+                <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
+                <p className="mt-5 text-2xl text-white/75">
+                  화면을 보고 포즈를 준비해 주세요
+                </p>
 
-        {[PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase) && (
-          <CameraStage videoRef={videoRef} goBack={goBack}>
-            <div className="absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/70 px-6 py-3 text-xl font-bold backdrop-blur">
-              CUT {Math.min(capturedPhotos.length + 1, TOTAL_SHOTS)} / {TOTAL_SHOTS}
-            </div>
-
-            {errorMessage && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 px-8 text-center">
-                <div className="text-3xl font-bold">{errorMessage}</div>
-              </div>
-            )}
-
-            {phase === PHASE.CAMERA && !errorMessage && (
-              <div className="absolute bottom-8 left-1/2 w-[90%] max-w-xl -translate-x-1/2 text-center">
-                <button disabled className="w-full rounded-full bg-white/70 py-5 text-3xl font-black text-black shadow-xl">
-                  자동 촬영 진행 중
-                </button>
-                <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-lg text-white/85 backdrop-blur">총 6장을 촬영합니다</p>
-              </div>
-            )}
-
-            {phase === PHASE.COUNTDOWN && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/65 backdrop-blur-sm">
-                <div className="relative flex h-80 w-80 items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-[14px] border-white/15" />
-                  <div className="absolute inset-0 animate-spin rounded-full border-[14px] border-pink-400 border-b-transparent border-l-violet-500" />
-                  <div className="text-9xl font-black">{countdown}</div>
+                <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
+                  {readyCountdown}
                 </div>
               </div>
             )}
 
-            {phase === PHASE.PREVIEW && capturedPhotos.length > 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm">
-                <img src={capturedPhotos[capturedPhotos.length - 1]} alt="방금 찍은 사진" className="max-h-[60vh] rounded-3xl border-4 border-white object-contain shadow-2xl" />
-                <div className="mt-8 text-4xl font-black text-pink-200">{capturedPhotos.length}번째 컷 완료!</div>
-                <p className="mt-3 text-2xl text-white/80">다음 포즈 준비!</p>
-              </div>
+            {[PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase) && (
+              <>
+                <div className="absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/70 px-6 py-3 text-xl font-bold backdrop-blur">
+                  CUT {Math.min(capturedPhotos.length + 1, TOTAL_SHOTS)} /{" "}
+                  {TOTAL_SHOTS}
+                </div>
+
+                {errorMessage && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 px-8 text-center">
+                    <div className="text-3xl font-bold">{errorMessage}</div>
+                  </div>
+                )}
+
+                {phase === PHASE.CAMERA && !errorMessage && (
+                  <div className="absolute bottom-8 left-1/2 w-[90%] max-w-xl -translate-x-1/2 text-center">
+                    <button
+                      disabled
+                      className="w-full rounded-full bg-white/70 py-5 text-3xl font-black text-black shadow-xl"
+                    >
+                      자동 촬영 진행 중
+                    </button>
+
+                    <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-lg text-white/85 backdrop-blur">
+                      총 6장을 촬영합니다
+                    </p>
+                  </div>
+                )}
+
+                {phase === PHASE.COUNTDOWN && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/65 backdrop-blur-sm">
+                    <div className="relative flex h-80 w-80 items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border-[14px] border-white/15" />
+                      <div className="absolute inset-0 animate-spin rounded-full border-[14px] border-pink-400 border-b-transparent border-l-violet-500" />
+                      <div className="text-9xl font-black">{countdown}</div>
+                    </div>
+                  </div>
+                )}
+
+                {phase === PHASE.PREVIEW && capturedPhotos.length > 0 && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm">
+                    <img
+                      src={capturedPhotos[capturedPhotos.length - 1]}
+                      alt="방금 찍은 사진"
+                      className="max-h-[60vh] rounded-3xl border-4 border-white object-contain shadow-2xl"
+                    />
+
+                    <div className="mt-8 text-4xl font-black text-pink-200">
+                      {capturedPhotos.length}번째 컷 완료!
+                    </div>
+
+                    <p className="mt-3 text-2xl text-white/80">다음 포즈 준비!</p>
+                  </div>
+                )}
+              </>
             )}
           </CameraStage>
         )}
@@ -712,12 +827,19 @@ export default function App() {
 
             <div className="flex items-center justify-between gap-6">
               <div>
-                <h2 className="text-4xl font-black">마음에 드는 사진 4장을 선택하세요</h2>
-                <p className="mt-2 text-white/70">선택한 순서대로 네컷에 들어갑니다.</p>
+                <h2 className="text-4xl font-black">
+                  마음에 드는 사진 4장을 선택하세요
+                </h2>
+                <p className="mt-2 text-white/70">
+                  선택한 순서대로 네컷에 들어갑니다.
+                </p>
               </div>
+
               <div className="rounded-3xl bg-white/10 px-8 py-5 text-center">
                 <div className="text-white/60">남은 시간</div>
-                <div className="text-5xl font-black text-pink-200">00:{String(selectSeconds).padStart(2, "0")}</div>
+                <div className="text-5xl font-black text-pink-200">
+                  00:{String(selectSeconds).padStart(2, "0")}
+                </div>
               </div>
             </div>
 
@@ -731,10 +853,17 @@ export default function App() {
                     key={index}
                     onClick={() => toggleSelect(index)}
                     className={`relative overflow-hidden rounded-3xl border-4 transition active:scale-95 ${
-                      selected ? "border-pink-400 shadow-[0_0_30px_rgba(236,72,153,0.45)]" : "border-white/15"
+                      selected
+                        ? "border-pink-400 shadow-[0_0_30px_rgba(236,72,153,0.45)]"
+                        : "border-white/15"
                     }`}
                   >
-                    <img src={photo} alt={`촬영 사진 ${index + 1}`} className="aspect-[3/4] w-full object-cover" />
+                    <img
+                      src={photo}
+                      alt={`촬영 사진 ${index + 1}`}
+                      className="aspect-[3/4] w-full object-cover"
+                    />
+
                     {selected && (
                       <div className="absolute right-4 top-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-500 text-2xl font-black">
                         {order}
@@ -749,7 +878,9 @@ export default function App() {
               onClick={confirmSelection}
               disabled={selectedIndexes.length !== REQUIRED_SELECTIONS}
               className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full py-5 text-3xl font-bold shadow-xl active:scale-95 ${
-                selectedIndexes.length === REQUIRED_SELECTIONS ? "bg-gradient-to-r from-violet-500 to-pink-500" : "bg-white/15 text-white/40"
+                selectedIndexes.length === REQUIRED_SELECTIONS
+                  ? "bg-gradient-to-r from-violet-500 to-pink-500"
+                  : "bg-white/15 text-white/40"
               }`}
             >
               <Check size={32} /> {selectedIndexes.length}/4 선택 완료
@@ -760,31 +891,62 @@ export default function App() {
         {phase === PHASE.RESULT && (
           <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl md:grid-cols-[1fr_1fr]">
             <div className="flex items-center justify-center rounded-3xl bg-white/5 p-5">
-              {resultUrl && <img src={resultUrl} alt="완성된 네컷" className="max-h-[75vh] rounded-2xl object-contain shadow-2xl" />}
+              {resultUrl && (
+                <img
+                  src={resultUrl}
+                  alt="완성된 네컷"
+                  className="max-h-[75vh] rounded-2xl object-contain shadow-2xl"
+                />
+              )}
             </div>
 
             <div className="flex flex-col items-center justify-center text-center">
               <Sparkles className="mb-5 text-pink-300" size={46} />
+
               <h2 className="text-4xl font-black">네컷 완성!</h2>
-              <p className="mt-4 text-2xl text-white/80">휴대폰 카메라로 QR을 찍어 사진을 저장하세요</p>
+
+              <p className="mt-4 text-2xl text-white/80">
+                휴대폰 카메라로 QR을 찍어 사진을 저장하세요
+              </p>
 
               <div className="mt-8 rounded-3xl bg-white p-5 shadow-2xl">
-                <QRCodeCanvas value={publicUrl || "업로드 중입니다."} size={260} includeMargin />
+                <QRCodeCanvas
+                  value={publicUrl || "업로드 중입니다."}
+                  size={260}
+                  includeMargin
+                />
               </div>
 
-              {uploading && <p className="mt-4 text-lg text-pink-200">QR 저장용 링크를 만드는 중입니다...</p>}
-              {uploadError && <p className="mt-4 max-w-md text-lg text-red-300">{uploadError}</p>}
+              {uploading && (
+                <p className="mt-4 text-lg text-pink-200">
+                  QR 저장용 링크를 만드는 중입니다...
+                </p>
+              )}
 
-              <button onClick={downloadResult} className="mt-7 inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-xl font-bold text-black active:scale-95">
+              {uploadError && (
+                <p className="mt-4 max-w-md text-lg text-red-300">
+                  {uploadError}
+                </p>
+              )}
+
+              <button
+                onClick={downloadResult}
+                className="mt-7 inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-xl font-bold text-black active:scale-95"
+              >
                 <Download size={24} /> 이 기기에 저장하기
               </button>
 
               <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 px-12 py-7">
                 <div className="text-white/60">남은 시간</div>
-                <div className="mt-2 text-6xl font-black text-pink-200">00:{String(resetSeconds).padStart(2, "0")}</div>
+                <div className="mt-2 text-6xl font-black text-pink-200">
+                  00:{String(resetSeconds).padStart(2, "0")}
+                </div>
               </div>
 
-              <button onClick={resetAll} className="mt-7 inline-flex items-center gap-2 text-white/70 underline">
+              <button
+                onClick={resetAll}
+                className="mt-7 inline-flex items-center gap-2 text-white/70 underline"
+              >
                 <RotateCcw size={18} /> 처음 화면으로 돌아가기
               </button>
             </div>
@@ -797,7 +959,10 @@ export default function App() {
 
 function BackButton({ onClick }) {
   return (
-    <button onClick={onClick} className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white/85 active:scale-95">
+    <button
+      onClick={onClick}
+      className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white/85 active:scale-95"
+    >
       <ArrowLeft size={22} /> 뒤로가기
     </button>
   );
@@ -820,7 +985,11 @@ function FrameMini({ frame }) {
           <div key={index} className="h-16 rounded-lg bg-white/20" />
         ))}
       </div>
-      <div className="text-xs font-black" style={{ color: frame.text || "#ffffff" }}>
+
+      <div
+        className="text-xs font-black"
+        style={{ color: frame.text || "#ffffff" }}
+      >
         NOLGURO
       </div>
     </div>
@@ -832,12 +1001,18 @@ function CameraStage({ videoRef, goBack, children, dim = false }) {
     <section className="relative h-[86vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-2xl">
       <video
         ref={videoRef}
+        autoPlay
         playsInline
         muted
-        className={`h-full w-full scale-x-[-1] object-cover ${dim ? "opacity-60" : ""}`}
+        className={`h-full w-full scale-x-[-1] object-cover ${
+          dim ? "opacity-60" : ""
+        }`}
       />
 
-      <button onClick={goBack} className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95">
+      <button
+        onClick={goBack}
+        className="absolute left-6 top-6 rounded-full bg-black/60 p-4 backdrop-blur active:scale-95"
+      >
         <ArrowLeft size={30} />
       </button>
 
