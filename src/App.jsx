@@ -51,11 +51,29 @@ const EVENT_FRAMES = [
   {
     id: "eventComing",
     name: "이벤트 프레임",
-    desc: "추후 디자인 프레임 추가 예정",
+    desc: "현재는 기본 이벤트 색상 프레임입니다",
     bg: "#111827",
     accent: "#facc15",
     text: "#ffffff",
+    event: true,
   },
+
+  /*
+  나중에 이벤트 PNG 프레임을 추가할 때는
+  public/frames/event/christmas.png 파일을 넣고 아래 주석을 해제하면 됨.
+
+  {
+    id: "christmas",
+    name: "크리스마스 프레임",
+    desc: "크리스마스 행사 전용 프레임",
+    type: "image",
+    image: "/frames/event/christmas.png",
+    bg: "#ffffff",
+    accent: "#ef4444",
+    text: "#ffffff",
+    event: true,
+  },
+  */
 ];
 
 const FOUR_CUT_CONFIG = {
@@ -74,28 +92,50 @@ export default function App() {
   const streamRef = useRef(null);
   const shutterRef = useRef(null);
 
+  const capturedPhotosRef = useRef([]);
+  const selectedIndexesRef = useRef([]);
+
   const [phase, setPhase] = useState(PHASE.WAITING);
   const [selectedFrame, setSelectedFrame] = useState(FRAME_COLORS[0]);
+
   const [mirrorResult, setMirrorResult] = useState(
     () => localStorage.getItem("mirrorResult") !== "false"
   );
 
   const [capturedPhotos, setCapturedPhotos] = useState([]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
+
   const [countdown, setCountdown] = useState(3);
   const [readyCountdown, setReadyCountdown] = useState(READY_TIME_LIMIT);
   const [flash, setFlash] = useState(false);
+
   const [resultUrl, setResultUrl] = useState("");
   const [publicUrl, setPublicUrl] = useState("");
+
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
   const [resetSeconds, setResetSeconds] = useState(RESULT_TIME_LIMIT);
   const [selectSeconds, setSelectSeconds] = useState(SELECT_TIME_LIMIT);
+
   const [cameraReady, setCameraReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [autoShooting, setAutoShooting] = useState(false);
 
-  const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
+  const isCameraPhase = [
+    PHASE.READY,
+    PHASE.CAMERA,
+    PHASE.COUNTDOWN,
+    PHASE.PREVIEW,
+  ].includes(phase);
+
+  useEffect(() => {
+    capturedPhotosRef.current = capturedPhotos;
+  }, [capturedPhotos]);
+
+  useEffect(() => {
+    selectedIndexesRef.current = selectedIndexes;
+  }, [selectedIndexes]);
 
   useEffect(() => {
     shutterRef.current = new Audio(SHUTTER_SOUND_PATH);
@@ -161,7 +201,7 @@ export default function App() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [phase, capturedPhotos, selectedIndexes]);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== PHASE.RESULT) return;
@@ -236,25 +276,42 @@ export default function App() {
   }
 
   function goBack() {
-    if (phase === PHASE.ADMIN) setPhase(PHASE.WAITING);
-    if (phase === PHASE.FRAME_TYPE_SELECT) setPhase(PHASE.WAITING);
-    if (phase === PHASE.BASIC_COLOR_SELECT || phase === PHASE.EVENT_FRAME_SELECT) {
+    if (phase === PHASE.ADMIN) {
+      setPhase(PHASE.WAITING);
+      return;
+    }
+
+    if (phase === PHASE.FRAME_TYPE_SELECT) {
+      setPhase(PHASE.WAITING);
+      return;
+    }
+
+    if (
+      phase === PHASE.BASIC_COLOR_SELECT ||
+      phase === PHASE.EVENT_FRAME_SELECT
+    ) {
       setPhase(PHASE.FRAME_TYPE_SELECT);
+      return;
     }
 
     if (isCameraPhase) {
       stopCamera();
       setCapturedPhotos([]);
+      setSelectedIndexes([]);
       setAutoShooting(false);
       setPhase(PHASE.WAITING);
+      return;
     }
 
     if (phase === PHASE.SELECT) {
       setSelectedIndexes([]);
       setPhase(PHASE.WAITING);
+      return;
     }
 
-    if (phase === PHASE.RESULT) resetAll();
+    if (phase === PHASE.RESULT) {
+      resetAll();
+    }
   }
 
   function prepareShooting(frame) {
@@ -324,6 +381,7 @@ export default function App() {
     setTimeout(() => setFlash(false), 180);
 
     const image = captureFromVideo();
+
     if (!image) {
       setPhase(PHASE.CAMERA);
       return;
@@ -350,16 +408,23 @@ export default function App() {
 
   function toggleSelect(index) {
     setSelectedIndexes((prev) => {
-      if (prev.includes(index)) return prev.filter((item) => item !== index);
+      if (prev.includes(index)) {
+        return prev.filter((item) => item !== index);
+      }
+
       if (prev.length >= REQUIRED_SELECTIONS) return prev;
+
       return [...prev, index];
     });
   }
 
   async function autoCompleteSelection() {
-    const completed = [...selectedIndexes];
+    const currentSelected = selectedIndexesRef.current;
+    const currentPhotos = capturedPhotosRef.current;
 
-    for (let i = 0; i < capturedPhotos.length; i++) {
+    const completed = [...currentSelected];
+
+    for (let i = 0; i < currentPhotos.length; i++) {
       if (completed.length >= REQUIRED_SELECTIONS) break;
       if (!completed.includes(i)) completed.push(i);
     }
@@ -377,7 +442,10 @@ export default function App() {
     setUploadError("");
 
     try {
-      const selectedPhotos = indexes.map((index) => capturedPhotos[index]);
+      const selectedPhotos = indexes.map(
+        (index) => capturedPhotosRef.current[index]
+      );
+
       const finalImage = await composeFinalImage(selectedPhotos);
 
       setResultUrl(finalImage);
@@ -408,7 +476,13 @@ export default function App() {
 
   async function uploadResultImage(dataUrl) {
     const blob = dataUrlToBlob(dataUrl);
-    const fileName = `noguro-${Date.now()}-${crypto.randomUUID()}.png`;
+
+    const uuid =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+
+    const fileName = `noguro-${Date.now()}-${uuid}.png`;
 
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -419,7 +493,10 @@ export default function App() {
 
     if (error) throw error;
 
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+    const { data } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(fileName);
+
     return data.publicUrl;
   }
 
@@ -440,6 +517,7 @@ export default function App() {
   function loadImage(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = src;
@@ -470,7 +548,13 @@ export default function App() {
     ctx.save();
     roundedRect(ctx, slot.x, slot.y, slot.width, slot.height, 24);
     ctx.clip();
-    ctx.drawImage(img, slot.x + offsetX, slot.y + offsetY, drawWidth, drawHeight);
+    ctx.drawImage(
+      img,
+      slot.x + offsetX,
+      slot.y + offsetY,
+      drawWidth,
+      drawHeight
+    );
     ctx.restore();
   }
 
@@ -486,20 +570,28 @@ export default function App() {
       gradient.addColorStop(1, "#facc15");
       ctx.fillStyle = gradient;
     } else {
-      ctx.fillStyle = frame.bg;
+      ctx.fillStyle = frame.bg || "#05030a";
     }
 
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   }
 
-  function drawFrameOverlay(ctx, frame) {
+  function drawBasicFrameOverlay(ctx, frame) {
     const { canvasWidth, slots } = FOUR_CUT_CONFIG;
     const textColor = frame.text || "#ffffff";
+    const accentColor = frame.accent || "#ffffff";
 
     slots.forEach((slot) => {
       ctx.save();
-      roundedRect(ctx, slot.x - 7, slot.y - 7, slot.width + 14, slot.height + 14, 30);
-      ctx.strokeStyle = frame.accent;
+      roundedRect(
+        ctx,
+        slot.x - 7,
+        slot.y - 7,
+        slot.width + 14,
+        slot.height + 14,
+        30
+      );
+      ctx.strokeStyle = accentColor;
       ctx.lineWidth = 10;
       ctx.stroke();
       ctx.restore();
@@ -531,6 +623,27 @@ export default function App() {
     ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
   }
 
+  async function drawEventImageFrame(ctx, frame) {
+    if (!frame.image) return false;
+
+    try {
+      const overlay = await loadImage(frame.image);
+
+      ctx.drawImage(
+        overlay,
+        0,
+        0,
+        FOUR_CUT_CONFIG.canvasWidth,
+        FOUR_CUT_CONFIG.canvasHeight
+      );
+
+      return true;
+    } catch (error) {
+      console.error("이벤트 프레임 이미지를 불러오지 못했습니다.", error);
+      return false;
+    }
+  }
+
   async function composeFinalImage(photoList) {
     const canvas = document.createElement("canvas");
     canvas.width = FOUR_CUT_CONFIG.canvasWidth;
@@ -546,7 +659,18 @@ export default function App() {
       drawCoverImage(ctx, img, slot);
     }
 
-    drawFrameOverlay(ctx, selectedFrame);
+    const isImageEventFrame =
+      selectedFrame.type === "image" && Boolean(selectedFrame.image);
+
+    if (isImageEventFrame) {
+      const success = await drawEventImageFrame(ctx, selectedFrame);
+
+      if (!success) {
+        drawBasicFrameOverlay(ctx, selectedFrame);
+      }
+    } else {
+      drawBasicFrameOverlay(ctx, selectedFrame);
+    }
 
     const today = new Date();
     const dateText = `${today.getFullYear()}.${String(
@@ -608,18 +732,18 @@ export default function App() {
               <Camera size={44} className="text-pink-300" />
             </div>
 
-            <h1 className="bg-gradient-to-r from-white via-pink-200 to-violet-300 bg-clip-text text-7xl font-black tracking-tight text-transparent md:text-8xl">
-              {APP_TITLE}
-            </h1>
+            <h1 className="bg-gradient-to-r from-white via-pink-200 to-violet-300 bg-clip-text text-5xl font-black tracking-tight text-transparent md:text-7xl">
+  {APP_TITLE}
+</h1>
 
             <p className="mt-5 text-2xl text-white/80">{SUBTITLE}</p>
 
-            <div className="mx-auto mt-12 w-52 rotate-[-3deg] rounded-3xl bg-white p-4 shadow-2xl">
+            <div className="mx-auto mt-8 w-44 rotate-[-3deg] rounded-3xl bg-white p-4 shadow-2xl">
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div
                     key={index}
-                    className="h-28 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950"
+                    className="h-24 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950"
                   />
                 ))}
               </div>
@@ -631,7 +755,7 @@ export default function App() {
 
             <button
               onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
-              className="mt-12 inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-16 py-6 text-3xl font-bold shadow-2xl transition hover:scale-105 active:scale-95"
+              className="mt-8 inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-12 py-5 text-2xl font-bold shadow-2xl transition hover:scale-105 active:scale-95"
             >
               <Camera size={34} /> 촬영 시작하기
             </button>
@@ -735,7 +859,7 @@ export default function App() {
               {EVENT_FRAMES.map((frame) => (
                 <button
                   key={frame.id}
-                  onClick={() => prepareShooting({ ...frame, event: true })}
+                  onClick={() => prepareShooting(frame)}
                   className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl active:scale-95"
                 >
                   <FrameMini frame={frame} />
@@ -749,7 +873,11 @@ export default function App() {
         )}
 
         {isCameraPhase && (
-          <CameraStage videoRef={videoRef} goBack={goBack} dim={phase === PHASE.READY}>
+          <CameraStage
+            videoRef={videoRef}
+            goBack={goBack}
+            dim={phase === PHASE.READY}
+          >
             {phase === PHASE.READY && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center backdrop-blur-sm">
                 <div className="text-5xl font-black">잠시 후 사진을 찍겠습니다</div>
@@ -969,29 +1097,38 @@ function BackButton({ onClick }) {
 }
 
 function FrameMini({ frame }) {
+  const isImageFrame = frame.type === "image" && frame.image;
+
   return (
     <div
-      className="mx-auto flex h-52 w-36 flex-col justify-between rounded-2xl p-3 shadow-2xl"
+      className="mx-auto flex h-52 w-36 flex-col justify-between overflow-hidden rounded-2xl p-3 shadow-2xl"
       style={{
-        background:
-          frame.id === "rainbow"
-            ? "linear-gradient(135deg,#ec4899,#a855f7,#38bdf8,#22c55e,#facc15)"
-            : frame.bg,
-        border: `5px solid ${frame.accent}`,
+        background: isImageFrame
+          ? `url(${frame.image}) center / cover no-repeat, ${
+              frame.bg || "#111827"
+            }`
+          : frame.id === "rainbow"
+          ? "linear-gradient(135deg,#ec4899,#a855f7,#38bdf8,#22c55e,#facc15)"
+          : frame.bg,
+        border: `5px solid ${frame.accent || "#ffffff"}`,
       }}
     >
-      <div className="grid grid-cols-2 gap-2">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="h-16 rounded-lg bg-white/20" />
-        ))}
-      </div>
+      {!isImageFrame && (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-16 rounded-lg bg-white/20" />
+            ))}
+          </div>
 
-      <div
-        className="text-xs font-black"
-        style={{ color: frame.text || "#ffffff" }}
-      >
-        NOLGURO
-      </div>
+          <div
+            className="text-xs font-black"
+            style={{ color: frame.text || "#ffffff" }}
+          >
+            NOLGURO
+          </div>
+        </>
+      )}
     </div>
   );
 }
