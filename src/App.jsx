@@ -6,13 +6,10 @@ import {
   Sparkles,
   ArrowLeft,
   Check,
-  Settings,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "./supabase";
 
-const APP_TITLE = "놀구로 네컷";
-const SUBTITLE = "오늘의 순간을 남겨보세요 ✨";
 const SHUTTER_SOUND_PATH = "/sounds/shutter.mp3";
 const STORAGE_BUCKET = "photo-results";
 
@@ -37,14 +34,70 @@ const PHASE = {
 };
 
 const FRAME_COLORS = [
-  { id: "purple", name: "퍼플", emoji: "💜", bg: "#05030a", accent: "#a855f7", text: "#ffffff" },
-  { id: "pink", name: "핑크", emoji: "🩷", bg: "#170716", accent: "#ec4899", text: "#ffffff" },
-  { id: "blue", name: "블루", emoji: "🩵", bg: "#06111f", accent: "#38bdf8", text: "#ffffff" },
-  { id: "mint", name: "민트", emoji: "💚", bg: "#031713", accent: "#22c55e", text: "#ffffff" },
-  { id: "yellow", name: "옐로우", emoji: "💛", bg: "#171203", accent: "#facc15", text: "#ffffff" },
-  { id: "black", name: "블랙", emoji: "🖤", bg: "#000000", accent: "#ffffff", text: "#ffffff" },
-  { id: "red", name: "레드", emoji: "❤️", bg: "#180404", accent: "#ef4444", text: "#ffffff" },
-  { id: "rainbow", name: "스페셜", emoji: "🌈", bg: "#05030a", accent: "#f472b6", text: "#ffffff" },
+  {
+    id: "purple",
+    name: "퍼플",
+    emoji: "💜",
+    bg: "#05030a",
+    accent: "#a855f7",
+    text: "#ffffff",
+  },
+  {
+    id: "pink",
+    name: "핑크",
+    emoji: "🩷",
+    bg: "#170716",
+    accent: "#ec4899",
+    text: "#ffffff",
+  },
+  {
+    id: "blue",
+    name: "블루",
+    emoji: "🩵",
+    bg: "#06111f",
+    accent: "#38bdf8",
+    text: "#ffffff",
+  },
+  {
+    id: "mint",
+    name: "민트",
+    emoji: "💚",
+    bg: "#031713",
+    accent: "#22c55e",
+    text: "#ffffff",
+  },
+  {
+    id: "yellow",
+    name: "옐로우",
+    emoji: "💛",
+    bg: "#171203",
+    accent: "#facc15",
+    text: "#ffffff",
+  },
+  {
+    id: "black",
+    name: "블랙",
+    emoji: "🖤",
+    bg: "#000000",
+    accent: "#ffffff",
+    text: "#ffffff",
+  },
+  {
+    id: "red",
+    name: "레드",
+    emoji: "❤️",
+    bg: "#180404",
+    accent: "#ef4444",
+    text: "#ffffff",
+  },
+  {
+    id: "rainbow",
+    name: "스페셜",
+    emoji: "🌈",
+    bg: "#05030a",
+    accent: "#f472b6",
+    text: "#ffffff",
+  },
 ];
 
 const EVENT_FRAMES = [
@@ -712,58 +765,39 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#05030a] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(236,72,153,0.35),transparent_30%),radial-gradient(circle_at_80%_75%,rgba(139,92,246,0.38),transparent_35%)]" />
-      <div className="absolute inset-0 opacity-30 bg-[linear-gradient(135deg,transparent_0%,rgba(255,255,255,0.08)_50%,transparent_100%)]" />
-
+    <div className="min-h-screen overflow-hidden bg-[#fff7f4] text-white">
       {flash && <div className="fixed inset-0 z-50 bg-white animate-pulse" />}
 
-      <main className="relative z-10 flex min-h-screen items-center justify-center p-6">
+      <main
+        className={`relative z-10 flex min-h-screen items-center justify-center ${
+          phase === PHASE.WAITING ? "p-0" : "p-6"
+        }`}
+      >
         {phase === PHASE.WAITING && (
-          <section className="relative w-full max-w-4xl text-center">
-            <button
-              onClick={() => setPhase(PHASE.ADMIN)}
-              className="absolute right-0 top-0 rounded-full bg-white/10 p-4 text-white/70 active:scale-95"
-            >
-              <Settings size={24} />
-            </button>
-
-            <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 shadow-2xl backdrop-blur">
-              <Camera size={44} className="text-pink-300" />
-            </div>
-
-            <h1 className="bg-gradient-to-r from-white via-pink-200 to-violet-300 bg-clip-text text-5xl font-black tracking-tight text-transparent md:text-7xl">
-  {APP_TITLE}
-</h1>
-
-            <p className="mt-5 text-2xl text-white/80">{SUBTITLE}</p>
-
-            <div className="mx-auto mt-8 w-44 rotate-[-3deg] rounded-3xl bg-white p-4 shadow-2xl">
-              <div className="grid grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-24 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-950"
-                  />
-                ))}
-              </div>
-
-              <div className="mt-4 text-center text-xl font-black text-black">
-                4컷
-              </div>
-            </div>
+          <section
+            onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
+            className="relative flex h-[100dvh] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#fff7f4]"
+          >
+            <img
+              src="/intro/main-image.png"
+              alt="놀구로 네컷 메인 화면"
+              draggable={false}
+              className="h-full w-full select-none object-contain"
+            />
 
             <button
-              onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
-              className="mt-8 inline-flex items-center gap-4 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-12 py-5 text-2xl font-bold shadow-2xl transition hover:scale-105 active:scale-95"
-            >
-              <Camera size={34} /> 촬영 시작하기
-            </button>
+              onClick={(event) => {
+                event.stopPropagation();
+                setPhase(PHASE.ADMIN);
+              }}
+              aria-label="관리자 설정"
+              className="absolute right-3 top-3 h-28 w-28 rounded-full bg-transparent active:scale-95"
+            />
           </section>
         )}
 
         {phase === PHASE.ADMIN && (
-          <section className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl">
+          <section className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/80 p-8 shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
 
             <h2 className="text-center text-5xl font-black">관리자 설정</h2>
@@ -791,7 +825,7 @@ export default function App() {
         )}
 
         {phase === PHASE.FRAME_TYPE_SELECT && (
-          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/80 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
 
             <h2 className="text-5xl font-black">프레임 종류를 선택하세요</h2>
@@ -823,7 +857,7 @@ export default function App() {
         )}
 
         {phase === PHASE.BASIC_COLOR_SELECT && (
-          <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+          <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/80 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
 
             <h2 className="text-5xl font-black">기본 프레임 색상을 선택하세요</h2>
@@ -847,7 +881,7 @@ export default function App() {
         )}
 
         {phase === PHASE.EVENT_FRAME_SELECT && (
-          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/55 p-8 text-center shadow-2xl backdrop-blur-xl">
+          <section className="w-full max-w-5xl rounded-[2rem] border border-white/10 bg-black/80 p-8 text-center shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
 
             <h2 className="text-5xl font-black">이벤트 프레임을 선택하세요</h2>
@@ -950,7 +984,7 @@ export default function App() {
         )}
 
         {phase === PHASE.SELECT && (
-          <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl">
+          <section className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-black/80 p-8 shadow-2xl backdrop-blur-xl">
             <BackButton onClick={goBack} />
 
             <div className="flex items-center justify-between gap-6">
@@ -1017,7 +1051,7 @@ export default function App() {
         )}
 
         {phase === PHASE.RESULT && (
-          <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2rem] border border-white/10 bg-black/55 p-8 shadow-2xl backdrop-blur-xl md:grid-cols-[1fr_1fr]">
+          <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2rem] border border-white/10 bg-black/80 p-8 shadow-2xl backdrop-blur-xl md:grid-cols-[1fr_1fr]">
             <div className="flex items-center justify-center rounded-3xl bg-white/5 p-5">
               {resultUrl && (
                 <img
