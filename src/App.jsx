@@ -1410,10 +1410,13 @@ function FrameMini({ frame }) {
       {!isImageFrame && (
         <>
           <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-16 rounded-lg bg-white/20" />
-            ))}
-          </div>
+  {Array.from({ length: 4 }).map((_, index) => (
+    <div
+      key={index}
+      className="h-16 rounded-lg border border-white/70 bg-white shadow-inner"
+    />
+  ))}
+</div>
 
           <div
             className="text-xs font-black"
