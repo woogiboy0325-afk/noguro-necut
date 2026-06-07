@@ -1,13 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Camera,
   Download,
   RotateCcw,
   Sparkles,
   ArrowLeft,
   Check,
   Lock,
-  Settings,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "./supabase";
@@ -222,7 +220,6 @@ export default function App() {
           setPhase(PHASE.CAMERA);
           return READY_TIME_LIMIT;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -255,7 +252,6 @@ export default function App() {
           autoCompleteSelection();
           return SELECT_TIME_LIMIT;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -275,7 +271,6 @@ export default function App() {
           resetAll();
           return RESULT_TIME_LIMIT;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -421,6 +416,7 @@ export default function App() {
       accent: frame.accent || "#facc15",
       text: frame.text || "#ffffff",
     });
+
     setCapturedPhotos([]);
     setSelectedIndexes([]);
     setResultUrl("");
@@ -824,42 +820,50 @@ export default function App() {
 
       <main
         className={`relative z-10 flex min-h-screen items-center justify-center ${
-          phase === PHASE.WAITING ? "p-0" : "p-6"
+          phase === PHASE.WAITING ? "p-0" : "p-4 md:p-6"
         }`}
       >
-{phase === PHASE.WAITING && (
-  <section
-    onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
-    className="relative flex h-[100dvh] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#fff7f4]"
-  >
-    <img
-      src="/intro/main-image.png"
-      alt="놀구로 네컷 메인 화면"
-      draggable={false}
-      className="pointer-events-none h-full w-full select-none object-contain"
-    />
+        {phase === PHASE.WAITING && (
+          <section
+            onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
+            className="relative flex h-[100dvh] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#fff7f4]"
+          >
+            <div className="relative h-full max-w-full aspect-[2/3]">
+              <img
+                src="/intro/main-image-clean.png"
+                alt="놀구로 네컷 메인 화면"
+                draggable={false}
+                className="pointer-events-none h-full w-full select-none object-contain"
+              />
 
-    <button
-      onClick={openAdminLogin}
-      aria-label="관리자 설정"
-      className="absolute left-1/2 top-[0.5%] z-50 h-[8%] w-[8%] translate-x-[140%] rounded-full bg-red-500/30 active:scale-95"
-    />
-  </section>
-)}
+              <button
+  onClick={openAdminLogin}
+  aria-label="관리자 설정"
+  className="absolute right-[4%] top-[2%] z-50 h-[5.4%] w-[8.4%] active:scale-95"
+>
+  <img
+    src="/intro/admin-button.png"
+    alt="관리자 버튼"
+    className="h-full w-full object-contain"
+  />
+</button>
+            </div>
+          </section>
+        )}
 
         {phase === PHASE.ADMIN_LOGIN && (
-          <section className="w-full max-w-xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-center text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-pink-100 text-pink-500 shadow-lg">
               <Lock size={42} />
             </div>
 
-            <h2 className="mt-6 text-4xl font-black text-pink-500">
+            <h2 className="mt-6 text-3xl md:text-4xl font-black text-pink-500">
               관리자 비밀번호
             </h2>
 
-            <p className="mt-3 text-lg font-bold text-zinc-500">
+            <p className="mt-3 text-base md:text-lg font-bold text-zinc-500">
               관리자 설정에 들어가려면 비밀번호를 입력해 주세요.
             </p>
 
@@ -868,23 +872,21 @@ export default function App() {
             </div>
 
             {adminError && (
-              <p className="mt-4 text-xl font-black text-red-500">
+              <p className="mt-4 text-lg md:text-xl font-black text-red-500">
                 {adminError}
               </p>
             )}
 
             <div className="mx-auto mt-8 grid max-w-sm grid-cols-3 gap-4">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(
-                (number) => (
-                  <button
-                    key={number}
-                    onClick={() => handleAdminNumber(number)}
-                    className="h-20 rounded-3xl bg-white text-3xl font-black text-zinc-700 shadow-lg active:scale-95"
-                  >
-                    {number}
-                  </button>
-                )
-              )}
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((number) => (
+                <button
+                  key={number}
+                  onClick={() => handleAdminNumber(number)}
+                  className="h-20 rounded-3xl bg-white text-3xl font-black text-zinc-700 shadow-lg active:scale-95"
+                >
+                  {number}
+                </button>
+              ))}
 
               <button
                 onClick={clearAdminInput}
@@ -911,20 +913,20 @@ export default function App() {
         )}
 
         {phase === PHASE.ADMIN && (
-          <section className="w-full max-w-3xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-3xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
-            <h2 className="text-center text-5xl font-black text-pink-500">
+            <h2 className="text-center text-4xl md:text-5xl font-black text-pink-500">
               관리자 설정
             </h2>
 
-            <div className="mt-10 rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
-              <div className="flex items-center justify-between gap-6">
+            <div className="mt-10 rounded-[2rem] border-2 border-pink-100 bg-white p-6 md:p-8 shadow-xl">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <div className="text-3xl font-black text-zinc-800">
+                  <div className="text-2xl md:text-3xl font-black text-zinc-800">
                     최종 사진 좌우반전
                   </div>
-                  <p className="mt-2 text-lg font-bold text-zinc-500">
+                  <p className="mt-2 text-base md:text-lg font-bold text-zinc-500">
                     ON이면 화면에서 본 모습 그대로 저장됩니다.
                   </p>
                 </div>
@@ -945,54 +947,54 @@ export default function App() {
         )}
 
         {phase === PHASE.FRAME_TYPE_SELECT && (
-          <section className="w-full max-w-5xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-5xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-center text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
             <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-pink-100 text-5xl shadow-lg">
               📸
             </div>
 
-            <h2 className="text-5xl font-black text-pink-500">
+            <h2 className="text-4xl md:text-5xl font-black text-pink-500">
               어떤 프레임으로 찍을까요?
             </h2>
 
-            <p className="mt-4 text-2xl font-bold text-zinc-500">
+            <p className="mt-4 text-xl md:text-2xl font-bold text-zinc-500">
               원하는 프레임을 선택해 주세요
             </p>
 
             <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
               <button
                 onClick={() => setPhase(PHASE.BASIC_COLOR_SELECT)}
-                className="rounded-[2rem] border-4 border-pink-100 bg-white p-8 shadow-xl transition active:scale-95"
+                className="rounded-[2rem] border-4 border-pink-100 bg-white p-8 shadow-xl active:scale-95"
               >
                 <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-pink-100 text-6xl">
                   🎨
                 </div>
-                <div className="mt-6 text-4xl font-black text-zinc-800">
+                <div className="mt-6 text-3xl md:text-4xl font-black text-zinc-800">
                   기본 프레임
                 </div>
-                <p className="mt-4 text-xl font-bold text-zinc-500">
+                <p className="mt-4 text-lg md:text-xl font-bold text-zinc-500">
                   원하는 색상을 골라 촬영해요
                 </p>
-                <div className="mt-8 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-8 py-4 text-2xl font-black text-white shadow-lg">
+                <div className="mt-8 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-8 py-4 text-xl md:text-2xl font-black text-white shadow-lg">
                   선택하기
                 </div>
               </button>
 
               <button
                 onClick={() => setPhase(PHASE.EVENT_FRAME_SELECT)}
-                className="rounded-[2rem] border-4 border-yellow-100 bg-white p-8 shadow-xl transition active:scale-95"
+                className="rounded-[2rem] border-4 border-yellow-100 bg-white p-8 shadow-xl active:scale-95"
               >
                 <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-yellow-100 text-6xl">
                   🎉
                 </div>
-                <div className="mt-6 text-4xl font-black text-zinc-800">
+                <div className="mt-6 text-3xl md:text-4xl font-black text-zinc-800">
                   이벤트 프레임
                 </div>
-                <p className="mt-4 text-xl font-bold text-zinc-500">
+                <p className="mt-4 text-lg md:text-xl font-bold text-zinc-500">
                   행사 전용 프레임으로 촬영해요
                 </p>
-                <div className="mt-8 rounded-full bg-gradient-to-r from-yellow-300 to-pink-400 px-8 py-4 text-2xl font-black text-white shadow-lg">
+                <div className="mt-8 rounded-full bg-gradient-to-r from-yellow-300 to-pink-400 px-8 py-4 text-xl md:text-2xl font-black text-white shadow-lg">
                   선택하기
                 </div>
               </button>
@@ -1001,14 +1003,14 @@ export default function App() {
         )}
 
         {phase === PHASE.BASIC_COLOR_SELECT && (
-          <section className="w-full max-w-6xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-6xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-center text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
-            <h2 className="text-5xl font-black text-pink-500">
+            <h2 className="text-4xl md:text-5xl font-black text-pink-500">
               기본 프레임 색상을 선택하세요
             </h2>
 
-            <p className="mt-4 text-xl font-bold text-zinc-500">
+            <p className="mt-4 text-lg md:text-xl font-bold text-zinc-500">
               선택한 색상으로 네컷 프레임이 만들어져요
             </p>
 
@@ -1021,7 +1023,7 @@ export default function App() {
                 >
                   <FrameMini frame={frame} />
 
-                  <div className="mt-4 text-2xl font-black text-zinc-800">
+                  <div className="mt-4 text-xl md:text-2xl font-black text-zinc-800">
                     {frame.emoji} {frame.name}
                   </div>
                 </button>
@@ -1031,13 +1033,13 @@ export default function App() {
         )}
 
         {phase === PHASE.EVENT_FRAME_SELECT && (
-          <section className="w-full max-w-5xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-5xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-center text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
-            <h2 className="text-5xl font-black text-pink-500">
+            <h2 className="text-4xl md:text-5xl font-black text-pink-500">
               이벤트 프레임을 선택하세요
             </h2>
-            <p className="mt-4 text-xl font-bold text-zinc-500">
+            <p className="mt-4 text-lg md:text-xl font-bold text-zinc-500">
               이벤트 프레임은 색상이 고정됩니다
             </p>
 
@@ -1057,7 +1059,7 @@ export default function App() {
                 >
                   <FrameMini frame={frame} />
 
-                  <div className="mt-5 text-2xl font-black text-zinc-800">
+                  <div className="mt-5 text-xl md:text-2xl font-black text-zinc-800">
                     {frame.name}
                   </div>
                   <div className="mt-2 font-bold text-zinc-500">
@@ -1076,15 +1078,15 @@ export default function App() {
             dim={phase === PHASE.READY}
           >
             {phase === PHASE.READY && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-center text-white backdrop-blur-sm">
-                <div className="text-5xl font-black">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 px-6 text-center text-white backdrop-blur-sm">
+                <div className="text-3xl md:text-5xl font-black">
                   잠시 후 사진을 찍겠습니다
                 </div>
-                <p className="mt-5 text-2xl text-white/75">
+                <p className="mt-5 text-xl md:text-2xl text-white/75">
                   화면을 보고 포즈를 준비해 주세요
                 </p>
 
-                <div className="mt-10 flex h-48 w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-8xl font-black text-white shadow-2xl">
+                <div className="mt-10 flex h-36 w-36 md:h-48 md:w-48 items-center justify-center rounded-full border-[12px] border-pink-400 text-7xl md:text-8xl font-black text-white shadow-2xl">
                   {readyCountdown}
                 </div>
               </div>
@@ -1094,14 +1096,16 @@ export default function App() {
               phase
             ) && (
               <>
-                <div className="absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/70 px-6 py-3 text-xl font-bold text-white backdrop-blur">
+                <div className="absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/70 px-6 py-3 text-lg md:text-xl font-bold text-white backdrop-blur">
                   CUT {Math.min(capturedPhotos.length + 1, TOTAL_SHOTS)} /{" "}
                   {TOTAL_SHOTS}
                 </div>
 
                 {errorMessage && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 px-8 text-center text-white">
-                    <div className="text-3xl font-bold">{errorMessage}</div>
+                    <div className="text-2xl md:text-3xl font-bold">
+                      {errorMessage}
+                    </div>
                   </div>
                 )}
 
@@ -1109,12 +1113,12 @@ export default function App() {
                   <div className="absolute bottom-8 left-1/2 w-[90%] max-w-xl -translate-x-1/2 text-center">
                     <button
                       disabled
-                      className="w-full rounded-full bg-white/70 py-5 text-3xl font-black text-black shadow-xl"
+                      className="w-full rounded-full bg-white/70 py-5 text-2xl md:text-3xl font-black text-black shadow-xl"
                     >
                       자동 촬영 진행 중
                     </button>
 
-                    <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-lg text-white/85 backdrop-blur">
+                    <p className="mt-4 rounded-full bg-black/55 px-6 py-3 text-base md:text-lg text-white/85 backdrop-blur">
                       총 6장을 촬영합니다
                     </p>
                   </div>
@@ -1122,27 +1126,29 @@ export default function App() {
 
                 {phase === PHASE.COUNTDOWN && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/65 text-white backdrop-blur-sm">
-                    <div className="relative flex h-80 w-80 items-center justify-center">
+                    <div className="relative flex h-64 w-64 md:h-80 md:w-80 items-center justify-center">
                       <div className="absolute inset-0 rounded-full border-[14px] border-white/15" />
                       <div className="absolute inset-0 animate-spin rounded-full border-[14px] border-pink-400 border-b-transparent border-l-violet-500" />
-                      <div className="text-9xl font-black">{countdown}</div>
+                      <div className="text-8xl md:text-9xl font-black">
+                        {countdown}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {phase === PHASE.PREVIEW && capturedPhotos.length > 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white backdrop-blur-sm">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-6 text-white backdrop-blur-sm">
                     <img
                       src={capturedPhotos[capturedPhotos.length - 1]}
                       alt="방금 찍은 사진"
                       className="max-h-[60vh] rounded-3xl border-4 border-white object-contain shadow-2xl"
                     />
 
-                    <div className="mt-8 text-4xl font-black text-pink-200">
+                    <div className="mt-8 text-3xl md:text-4xl font-black text-pink-200">
                       {capturedPhotos.length}번째 컷 완료!
                     </div>
 
-                    <p className="mt-3 text-2xl text-white/80">
+                    <p className="mt-3 text-xl md:text-2xl text-white/80">
                       다음 포즈 준비!
                     </p>
                   </div>
@@ -1153,28 +1159,28 @@ export default function App() {
         )}
 
         {phase === PHASE.SELECT && (
-          <section className="w-full max-w-6xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-zinc-800 shadow-2xl">
+          <section className="w-full max-w-6xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-zinc-800 shadow-2xl">
             <BackButton onClick={goBack} />
 
-            <div className="flex items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
-                <h2 className="text-4xl font-black text-pink-500">
+                <h2 className="text-3xl md:text-4xl font-black text-pink-500">
                   마음에 드는 사진 4장을 선택하세요
                 </h2>
-                <p className="mt-2 text-lg font-bold text-zinc-500">
+                <p className="mt-2 text-base md:text-lg font-bold text-zinc-500">
                   선택한 순서대로 네컷에 들어갑니다.
                 </p>
               </div>
 
               <div className="rounded-3xl bg-white px-8 py-5 text-center shadow-lg">
                 <div className="font-bold text-zinc-500">남은 시간</div>
-                <div className="text-5xl font-black text-pink-500">
+                <div className="text-4xl md:text-5xl font-black text-pink-500">
                   00:{String(selectSeconds).padStart(2, "0")}
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 grid grid-cols-3 gap-5">
+            <div className="mt-8 grid grid-cols-2 md:grid-cols-3 gap-5">
               {capturedPhotos.map((photo, index) => {
                 const order = selectedIndexes.indexOf(index) + 1;
                 const selected = order > 0;
@@ -1196,7 +1202,7 @@ export default function App() {
                     />
 
                     {selected && (
-                      <div className="absolute right-4 top-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-500 text-2xl font-black text-white">
+                      <div className="absolute right-4 top-4 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-full bg-pink-500 text-xl md:text-2xl font-black text-white">
                         {order}
                       </div>
                     )}
@@ -1208,7 +1214,7 @@ export default function App() {
             <button
               onClick={confirmSelection}
               disabled={selectedIndexes.length !== REQUIRED_SELECTIONS}
-              className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full py-5 text-3xl font-black shadow-xl active:scale-95 ${
+              className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full py-5 text-2xl md:text-3xl font-black shadow-xl active:scale-95 ${
                 selectedIndexes.length === REQUIRED_SELECTIONS
                   ? "bg-gradient-to-r from-pink-400 to-rose-400 text-white"
                   : "bg-zinc-200 text-zinc-400"
@@ -1220,7 +1226,7 @@ export default function App() {
         )}
 
         {phase === PHASE.RESULT && (
-          <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-zinc-800 shadow-2xl md:grid-cols-[1fr_1fr]">
+          <section className="grid w-full max-w-6xl grid-cols-1 gap-8 rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-6 md:p-8 text-zinc-800 shadow-2xl md:grid-cols-[1fr_1fr]">
             <div className="flex items-center justify-center rounded-3xl bg-white p-5 shadow-xl">
               {resultUrl && (
                 <img
@@ -1234,9 +1240,11 @@ export default function App() {
             <div className="flex flex-col items-center justify-center text-center">
               <Sparkles className="mb-5 text-pink-400" size={46} />
 
-              <h2 className="text-4xl font-black text-pink-500">네컷 완성!</h2>
+              <h2 className="text-3xl md:text-4xl font-black text-pink-500">
+                네컷 완성!
+              </h2>
 
-              <p className="mt-4 text-2xl font-bold text-zinc-600">
+              <p className="mt-4 text-xl md:text-2xl font-bold text-zinc-600">
                 휴대폰 카메라로 QR을 찍어 사진을 저장하세요
               </p>
 
@@ -1262,14 +1270,14 @@ export default function App() {
 
               <button
                 onClick={downloadResult}
-                className="mt-7 inline-flex items-center gap-3 rounded-full bg-zinc-900 px-8 py-4 text-xl font-black text-white active:scale-95"
+                className="mt-7 inline-flex items-center gap-3 rounded-full bg-zinc-900 px-8 py-4 text-lg md:text-xl font-black text-white active:scale-95"
               >
                 <Download size={24} /> 이 기기에 저장하기
               </button>
 
               <div className="mt-8 rounded-3xl bg-white px-12 py-7 shadow-lg">
                 <div className="font-bold text-zinc-500">남은 시간</div>
-                <div className="mt-2 text-6xl font-black text-pink-500">
+                <div className="mt-2 text-5xl md:text-6xl font-black text-pink-500">
                   00:{String(resetSeconds).padStart(2, "0")}
                 </div>
               </div>
