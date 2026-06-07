@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Check,
   Lock,
+  Settings,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "./supabase";
@@ -37,7 +38,7 @@ const PHASE = {
 };
 
 const FRAME_COLORS = [
-   {
+  {
     id: "purple",
     name: "퍼플",
     emoji: "💜",
@@ -101,6 +102,35 @@ const FRAME_COLORS = [
     accent: "#ffffff",
     text: "#ffffff",
   },
+];
+
+const EVENT_FRAMES = [
+  {
+    id: "eventComing",
+    name: "이벤트 프레임",
+    desc: "현재는 기본 이벤트 색상 프레임입니다",
+    bg: "#111827",
+    accent: "#facc15",
+    text: "#ffffff",
+    event: true,
+  },
+
+  /*
+  나중에 이벤트 PNG 프레임을 추가할 때는
+  public/frames/event/christmas.png 파일을 넣고 아래 주석을 해제하면 됨.
+
+  {
+    id: "christmas",
+    name: "크리스마스 프레임",
+    desc: "크리스마스 행사 전용 프레임",
+    type: "image",
+    image: "/frames/event/christmas.png",
+    bg: "#ffffff",
+    accent: "#ef4444",
+    text: "#ffffff",
+    event: true,
+  },
+  */
 ];
 
 const FOUR_CUT_CONFIG = {
@@ -385,7 +415,12 @@ export default function App() {
   }
 
   function prepareShooting(frame) {
-    setSelectedFrame(frame);
+    setSelectedFrame({
+      ...frame,
+      bg: frame.bg || "#111827",
+      accent: frame.accent || "#facc15",
+      text: frame.text || "#ffffff",
+    });
     setCapturedPhotos([]);
     setSelectedIndexes([]);
     setResultUrl("");
@@ -792,25 +827,25 @@ export default function App() {
           phase === PHASE.WAITING ? "p-0" : "p-6"
         }`}
       >
-        {phase === PHASE.WAITING && (
-          <section
-            onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
-            className="relative flex h-[100dvh] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#fff7f4]"
-          >
-            <img
-              src="/intro/main-image.png"
-              alt="놀구로 네컷 메인 화면"
-              draggable={false}
-              className="h-full w-full select-none object-contain"
-            />
+{phase === PHASE.WAITING && (
+  <section
+    onClick={() => setPhase(PHASE.FRAME_TYPE_SELECT)}
+    className="relative flex h-[100dvh] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#fff7f4]"
+  >
+    <img
+      src="/intro/main-image.png"
+      alt="놀구로 네컷 메인 화면"
+      draggable={false}
+      className="pointer-events-none h-full w-full select-none object-contain"
+    />
 
-            <button
-              onClick={openAdminLogin}
-              aria-label="관리자 설정"
-              className="absolute right-3 top-3 h-28 w-28 rounded-full bg-transparent active:scale-95"
-            />
-          </section>
-        )}
+    <button
+      onClick={openAdminLogin}
+      aria-label="관리자 설정"
+      className="absolute left-1/2 top-[0.5%] z-50 h-[8%] w-[8%] translate-x-[140%] rounded-full bg-red-500/30 active:scale-95"
+    />
+  </section>
+)}
 
         {phase === PHASE.ADMIN_LOGIN && (
           <section className="w-full max-w-xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center text-zinc-800 shadow-2xl">
@@ -1010,7 +1045,14 @@ export default function App() {
               {EVENT_FRAMES.map((frame) => (
                 <button
                   key={frame.id}
-                  onClick={() => prepareShooting(frame)}
+                  onClick={() =>
+                    prepareShooting({
+                      ...frame,
+                      bg: frame.bg || "#111827",
+                      accent: frame.accent || "#facc15",
+                      text: frame.text || "#ffffff",
+                    })
+                  }
                   className="rounded-[2rem] border-4 border-yellow-100 bg-white p-6 shadow-xl active:scale-95"
                 >
                   <FrameMini frame={frame} />
@@ -1150,7 +1192,7 @@ export default function App() {
                     <img
                       src={photo}
                       alt={`촬영 사진 ${index + 1}`}
-                      className="aspect-[3/4] w-full object-cover"
+                      className="aspect-[13/16] w-full object-cover"
                     />
 
                     {selected && (
