@@ -57,7 +57,7 @@ const EVENT_FRAMES = [
     desc: "놀구로 건물과 픽셀 캐릭터가 들어간 이벤트 프레임",
     type: "image",
     image: "/frames/event/noguro-pixel-frame.png",
-    imageMode: "background",
+    imageMode: "overlay",
     bg: "#ffffff",
     accent: "#ffffff",
     text: "#5b3415",
@@ -696,12 +696,7 @@ export default function App() {
     const isImageEventFrame =
       selectedFrame.type === "image" && Boolean(selectedFrame.image);
 
-    if (isImageEventFrame && selectedFrame.imageMode === "background") {
-      const success = await drawEventImageFrame(ctx, selectedFrame);
-      if (!success) drawFrameBackground(ctx, selectedFrame);
-    } else {
-      drawFrameBackground(ctx, selectedFrame);
-    }
+    drawFrameBackground(ctx, selectedFrame);
 
     for (let i = 0; i < photoList.length; i++) {
       const img = await loadImage(photoList[i]);
@@ -709,12 +704,16 @@ export default function App() {
       drawCoverImage(ctx, img, slot);
     }
 
-    if (isImageEventFrame && selectedFrame.imageMode !== "background") {
+    if (isImageEventFrame) {
       const success = await drawEventImageFrame(ctx, selectedFrame);
-      if (!success) drawBasicFrameOverlay(ctx, selectedFrame);
-    }
-
-    if (!isImageEventFrame) {
+      if (!success) {
+        drawBasicFrameOverlay(ctx, {
+          ...selectedFrame,
+          accent: "#ffffff",
+          text: selectedFrame.text || "#5b3415",
+        });
+      }
+    } else {
       drawBasicFrameOverlay(ctx, selectedFrame);
     }
 
