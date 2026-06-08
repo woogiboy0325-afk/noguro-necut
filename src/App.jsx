@@ -71,7 +71,7 @@ const EVENT_FRAMES = [
     bg:     "#87ceeb",   // 슬롯 배경으로 쓸 하늘색
     accent: "#ffffff",
     text:   "#5b3415",
-    dateY:  1648,
+    dateY:  1635,
   },
 ];
 
