@@ -54,13 +54,13 @@ const EVENT_FRAMES = [
   {
     id: "noguroPixel",
     name: "놀구로 픽셀 프레임",
-    desc: "놀구로 건물과 픽셀 캐릭터가 들어간 이벤트 프레임",
+    desc: "놀구로 네컷 전용 이벤트 프레임",
     type: "image",
     image: "/frames/event/noguro-pixel-frame.png",
-    imageMode: "overlay",
     bg: "#ffffff",
     accent: "#ffffff",
     text: "#5b3415",
+    dateY: 1648,
     event: true,
   },
 ];
@@ -667,13 +667,62 @@ export default function App() {
     ctx.fillText("NOLGURO NECUT", canvasWidth / 2, 1725);
   }
 
+  function makeEventOverlayTransparent(sourceImage) {
+    const { canvasWidth, canvasHeight, slots } = FOUR_CUT_CONFIG;
+
+    const overlayCanvas = document.createElement("canvas");
+    overlayCanvas.width = canvasWidth;
+    overlayCanvas.height = canvasHeight;
+
+    const overlayCtx = overlayCanvas.getContext("2d");
+    overlayCtx.drawImage(sourceImage, 0, 0, canvasWidth, canvasHeight);
+
+    const imageData = overlayCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+    const data = imageData.data;
+
+    slots.forEach((slot) => {
+      const startX = Math.max(0, Math.floor(slot.x));
+      const startY = Math.max(0, Math.floor(slot.y));
+      const endX = Math.min(canvasWidth, Math.ceil(slot.x + slot.width));
+      const endY = Math.min(canvasHeight, Math.ceil(slot.y + slot.height));
+
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+          const index = (y * canvasWidth + x) * 4;
+          const red = data[index];
+          const green = data[index + 1];
+          const blue = data[index + 2];
+          const alpha = data[index + 3];
+
+          if (alpha === 0) continue;
+
+          const maxColor = Math.max(red, green, blue);
+          const minColor = Math.min(red, green, blue);
+          const average = (red + green + blue) / 3;
+
+          const isTransparentSlotBackground =
+            (maxColor - minColor < 45 && average > 145) ||
+            (red > 210 && green > 210 && blue > 210);
+
+          if (isTransparentSlotBackground) {
+            data[index + 3] = 0;
+          }
+        }
+      }
+    });
+
+    overlayCtx.putImageData(imageData, 0, 0);
+    return overlayCanvas;
+  }
+
   async function drawEventImageFrame(ctx, frame) {
     if (!frame.image) return false;
 
     try {
       const overlay = await loadImage(frame.image);
+      const overlayCanvas = makeEventOverlayTransparent(overlay);
       ctx.drawImage(
-        overlay,
+        overlayCanvas,
         0,
         0,
         FOUR_CUT_CONFIG.canvasWidth,
@@ -707,11 +756,7 @@ export default function App() {
     if (isImageEventFrame) {
       const success = await drawEventImageFrame(ctx, selectedFrame);
       if (!success) {
-        drawBasicFrameOverlay(ctx, {
-          ...selectedFrame,
-          accent: "#ffffff",
-          text: selectedFrame.text || "#5b3415",
-        });
+        drawBasicFrameOverlay(ctx, selectedFrame);
       }
     } else {
       drawBasicFrameOverlay(ctx, selectedFrame);
@@ -719,11 +764,12 @@ export default function App() {
 
     const today = new Date();
     const dateText = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
+    const dateY = selectedFrame.dateY || 1668;
 
     ctx.fillStyle = selectedFrame.text || "#ffffff";
     ctx.font = "bold 34px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(dateText, canvas.width / 2, 1668);
+    ctx.fillText(dateText, canvas.width / 2, dateY);
 
     return canvas.toDataURL("image/png");
   }
