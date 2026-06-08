@@ -52,12 +52,15 @@ const FRAME_COLORS = [
 
 const EVENT_FRAMES = [
   {
-    id: "eventComing",
-    name: "이벤트 프레임",
-    desc: "현재는 기본 이벤트 색상 프레임입니다",
-    bg: "#111827",
-    accent: "#facc15",
-    text: "#ffffff",
+    id: "noguroPixel",
+    name: "놀구로 픽셀 프레임",
+    desc: "놀구로 건물과 픽셀 캐릭터가 들어간 이벤트 프레임",
+    type: "image",
+    image: "/frames/event/noguro-pixel-frame.png",
+    imageMode: "background",
+    bg: "#ffffff",
+    accent: "#ffffff",
+    text: "#5b3415",
     event: true,
   },
 ];
@@ -160,6 +163,7 @@ export default function App() {
     if (errorMessage) return;
 
     const timer = setTimeout(() => {
+      // beginCountdown은 현재 phase/cameraReady/errorMessage 값을 기준으로 다시 한 번 검사합니다.
       beginCountdown();
     }, capturedPhotos.length === 0 ? 800 : 1200);
 
@@ -367,6 +371,8 @@ export default function App() {
     const sourceWidth = video.videoWidth;
     const sourceHeight = video.videoHeight;
 
+    // 최종 네컷 사진칸 비율(13:16)에 맞춰 원본 영상을 중앙 크롭합니다.
+    // 이렇게 해야 촬영 화면, 선택 화면, 최종 결과물의 구도가 최대한 같아집니다.
     const targetAspect = PHOTO_ASPECT_WIDTH / PHOTO_ASPECT_HEIGHT;
     const sourceAspect = sourceWidth / sourceHeight;
 
@@ -666,7 +672,13 @@ export default function App() {
 
     try {
       const overlay = await loadImage(frame.image);
-      ctx.drawImage(overlay, 0, 0, FOUR_CUT_CONFIG.canvasWidth, FOUR_CUT_CONFIG.canvasHeight);
+      ctx.drawImage(
+        overlay,
+        0,
+        0,
+        FOUR_CUT_CONFIG.canvasWidth,
+        FOUR_CUT_CONFIG.canvasHeight
+      );
       return true;
     } catch (error) {
       console.error("이벤트 프레임 이미지를 불러오지 못했습니다.", error);
@@ -681,7 +693,15 @@ export default function App() {
 
     const ctx = canvas.getContext("2d");
 
-    drawFrameBackground(ctx, selectedFrame);
+    const isImageEventFrame =
+      selectedFrame.type === "image" && Boolean(selectedFrame.image);
+
+    if (isImageEventFrame && selectedFrame.imageMode === "background") {
+      const success = await drawEventImageFrame(ctx, selectedFrame);
+      if (!success) drawFrameBackground(ctx, selectedFrame);
+    } else {
+      drawFrameBackground(ctx, selectedFrame);
+    }
 
     for (let i = 0; i < photoList.length; i++) {
       const img = await loadImage(photoList[i]);
@@ -689,12 +709,12 @@ export default function App() {
       drawCoverImage(ctx, img, slot);
     }
 
-    const isImageEventFrame = selectedFrame.type === "image" && Boolean(selectedFrame.image);
-
-    if (isImageEventFrame) {
+    if (isImageEventFrame && selectedFrame.imageMode !== "background") {
       const success = await drawEventImageFrame(ctx, selectedFrame);
       if (!success) drawBasicFrameOverlay(ctx, selectedFrame);
-    } else {
+    }
+
+    if (!isImageEventFrame) {
       drawBasicFrameOverlay(ctx, selectedFrame);
     }
 
@@ -741,6 +761,11 @@ export default function App() {
   async function createCp1500PrintImage(sourceDataUrl) {
     const sourceImage = await loadImage(sourceDataUrl);
 
+    // KP-108IN 기준
+    // 재단 전: 약 100 x 177mm
+    // 재단 후: 약 100 x 148mm
+    // 화면/QR용 결과 이미지는 그대로 유지하고,
+    // 인쇄용 이미지만 위아래 절단면 영역을 추가한 별도 캔버스로 만듭니다.
     const paperWidth = 1200;
     const paperHeight = Math.round((paperWidth * 177) / 100);
     const cutAreaWidth = paperWidth;
@@ -753,6 +778,7 @@ export default function App() {
 
     const ctx = canvas.getContext("2d");
 
+    // 절단면은 흰색으로 둡니다.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, paperWidth, paperHeight);
 
@@ -762,6 +788,8 @@ export default function App() {
     let drawWidth;
     let drawHeight;
 
+    // 기존 네컷 결과물 비율은 유지하면서,
+    // 재단 후 남는 100 x 148 영역 안에 최대한 크게 넣습니다.
     if (sourceRatio > cutRatio) {
       drawWidth = cutAreaWidth;
       drawHeight = drawWidth / sourceRatio;
@@ -1345,7 +1373,6 @@ export default function App() {
             </div>
           </section>
         )}
-
         {printStatus && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-8 text-center backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-[2.5rem] bg-white p-8 text-zinc-800 shadow-2xl">
@@ -1410,13 +1437,13 @@ function FrameMini({ frame }) {
       {!isImageFrame && (
         <>
           <div className="grid grid-cols-2 gap-2">
-  {Array.from({ length: 4 }).map((_, index) => (
-    <div
-      key={index}
-      className="h-16 rounded-lg border border-white/70 bg-white shadow-inner"
-    />
-  ))}
-</div>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-16 rounded-lg border border-white/70 bg-white shadow-inner"
+              />
+            ))}
+          </div>
 
           <div
             className="text-xs font-black"
