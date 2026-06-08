@@ -248,11 +248,16 @@ async function composeFinalImage(photoList, frame) {
 
   if (isEventFrame) {
     // ─── 이벤트 프레임 합성 순서 ───────────────────────
+    // PNG의 슬롯 구멍이 투명(alpha=0)이므로:
+    // 1. 흰색 배경
+    // 2. 사진을 슬롯 좌표에 그리기
+    // 3. 투명 PNG 프레임을 위에 덮기 → 슬롯 구멍으로 사진이 보임
+
     // 1. 흰색 배경
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // 2. 이벤트 프레임 이미지 로드
+    // 2. 프레임 이미지 로드
     let overlayImg = null;
     try {
       overlayImg = await loadImage(frame.image);
@@ -260,19 +265,14 @@ async function composeFinalImage(photoList, frame) {
       console.error("이벤트 프레임 로드 실패", e);
     }
 
-    // 3. 프레임을 먼저 그려서 슬롯 경계 파악
-    if (overlayImg) {
-      ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
-    }
-
-    // 4. 사진을 이벤트 슬롯 좌표에 그리기
+    // 3. 사진을 슬롯 위치에 그리기
     for (let i = 0; i < photoList.length; i++) {
       const img  = await loadImage(photoList[i]);
       const slot = EVENT_SLOTS[i];
       drawCoverImage(ctx, img, slot, 16);
     }
 
-    // 5. 프레임을 다시 덮어서 슬롯 밖으로 삐져나온 사진 가리기
+    // 4. 투명 PNG 프레임을 위에 덮기 (슬롯 구멍은 투명이라 사진이 그대로 보임)
     if (overlayImg) {
       ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
     }
