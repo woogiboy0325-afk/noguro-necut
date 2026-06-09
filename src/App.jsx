@@ -44,6 +44,7 @@ const PHASE = {
   COUNTDOWN:          "COUNTDOWN",
   PREVIEW:            "PREVIEW",
   SELECT:             "SELECT",
+  CAPTION_INPUT:      "CAPTION_INPUT",
   RESULT:             "RESULT",
 };
 
@@ -71,7 +72,7 @@ const EVENT_FRAMES = [
     bg:     "#87ceeb",   // 슬롯 배경으로 쓸 하늘색
     accent: "#ffffff",
     text:   "#5b3415",
-    dateY:  1635,
+    dateY:  1720,
   },
 ];
 
@@ -167,9 +168,10 @@ function drawBasicBackground(ctx, frame) {
 }
 
 // 기본 프레임 오버레이(텍스트+테두리) 그리기
-function drawBasicOverlay(ctx, frame) {
+function drawBasicOverlay(ctx, frame, captionText = "") {
   const tc = frame.text   || "#ffffff";
   const ac = frame.accent || "#ffffff";
+  const bottomText = String(captionText || "").trim().slice(0, 20) || "NOLGURO NECUT";
 
   BASIC_SLOTS.forEach((slot) => {
     ctx.save();
@@ -197,8 +199,8 @@ function drawBasicOverlay(ctx, frame) {
   ctx.restore();
 
   ctx.textAlign = "center";
-  ctx.font      = "bold 26px sans-serif";
-  ctx.fillText("NOLGURO NECUT", CANVAS_W / 2, 1740);
+  ctx.font      = "bold 30px sans-serif";
+  ctx.fillText(bottomText, CANVAS_W / 2, 1740);
 }
 
 // 비디오에서 캡처 (화면에 보이는 것과 동일하게 13:16 크롭)
@@ -238,7 +240,7 @@ function captureFromVideo(video, mirror) {
 }
 
 // 최종 네컷 이미지 합성
-async function composeFinalImage(photoList, frame) {
+async function composeFinalImage(photoList, frame, captionText = "") {
   const canvas = document.createElement("canvas");
   canvas.width  = CANVAS_W;
   canvas.height = CANVAS_H;
@@ -290,7 +292,7 @@ async function composeFinalImage(photoList, frame) {
     }
 
     // 3. 오버레이(테두리+텍스트)
-    drawBasicOverlay(ctx, frame);
+    drawBasicOverlay(ctx, frame, captionText);
   }
 
   // 날짜 텍스트
@@ -477,6 +479,8 @@ export default function App() {
   const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [selectSeconds,   setSelectSeconds]   = useState(SELECT_TIME_LIMIT);
   const [isCreating,      setIsCreating]      = useState(false);
+  const [captionText,     setCaptionText]     = useState("");
+  const [pendingIndexes,  setPendingIndexes]  = useState([]);
 
   // ── 결과 ──────────────────────────────────
   const [resultUrl,    setResultUrl]    = useState("");
@@ -603,6 +607,12 @@ export default function App() {
       setSelectedIndexes([]); isCreatingRef.current = false; setIsCreating(false);
       setPhase(PHASE.WAITING); return;
     }
+    if (phase === PHASE.CAPTION_INPUT) {
+      setPendingIndexes([]);
+      setCaptionText("");
+      setPhase(PHASE.SELECT);
+      return;
+    }
     if (phase === PHASE.RESULT) resetAll();
   }
 
@@ -627,6 +637,7 @@ export default function App() {
   function prepareShooting(frame) {
     setSelectedFrame({ bg: "#111827", accent: "#facc15", text: "#ffffff", ...frame });
     setCapturedPhotos([]); setSelectedIndexes([]);
+    setPendingIndexes([]); setCaptionText("");
     setResultUrl(""); setPublicUrl(""); setUploadError("");
     isCreatingRef.current = false; setIsCreating(false);
     setErrorMessage(""); setAutoShooting(false); setCameraReady(false);
@@ -686,22 +697,43 @@ export default function App() {
       if (sel.length >= REQUIRED_SELECTIONS) break;
       if (!sel.includes(i)) sel.push(i);
     }
-    await createResult(sel.slice(0, REQUIRED_SELECTIONS));
+    await handleSelectionComplete(sel.slice(0, REQUIRED_SELECTIONS));
   }
 
   async function confirmSelection() {
     if (isCreatingRef.current || selectedIndexes.length !== REQUIRED_SELECTIONS) return;
-    await createResult(selectedIndexes);
+    await handleSelectionComplete(selectedIndexes);
   }
 
-  async function createResult(indexes) {
+  async function handleSelectionComplete(indexes) {
+    const finalIndexes = indexes.slice(0, REQUIRED_SELECTIONS);
+    const isEventFrame = selectedFrame.type === "image" && Boolean(selectedFrame.image);
+
+    if (isEventFrame) {
+      await createResult(finalIndexes, "");
+      return;
+    }
+
+    setPendingIndexes(finalIndexes);
+    setCaptionText("");
+    setPhase(PHASE.CAPTION_INPUT);
+  }
+
+  async function confirmCaption() {
+    if (isCreatingRef.current) return;
+    if (pendingIndexes.length !== REQUIRED_SELECTIONS) return;
+
+    await createResult(pendingIndexes, captionText);
+  }
+
+  async function createResult(indexes, customCaption = "") {
     if (isCreatingRef.current) return;
     isCreatingRef.current = true;
     setIsCreating(true); setUploading(true); setUploadError("");
 
     try {
       const photos = indexes.map((i) => capturedPhotosRef.current[i]);
-      const final  = await composeFinalImage(photos, selectedFrame);
+      const final  = await composeFinalImage(photos, selectedFrame, customCaption);
       setResultUrl(final);
 
       const uploaded = await uploadResultImage(final);
@@ -753,6 +785,7 @@ export default function App() {
     stopCamera();
     setPhase(PHASE.WAITING);
     setCapturedPhotos([]); setSelectedIndexes([]);
+    setPendingIndexes([]); setCaptionText("");
     setResultUrl(""); setPublicUrl(""); setUploadError("");
     setUploading(false); setCountdown(3); setReadyCountdown(READY_TIME_LIMIT);
     setFlash(false); setAutoShooting(false); setErrorMessage("");
@@ -962,11 +995,18 @@ export default function App() {
                 )}
 
                 {phase === PHASE.COUNTDOWN && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/65 text-white backdrop-blur-sm">
-                    <div className="relative flex h-80 w-80 items-center justify-center">
-                      <div className="absolute inset-0 rounded-full border-[14px] border-white/15" />
-                      <div className="absolute inset-0 animate-spin rounded-full border-[14px] border-pink-400 border-b-transparent border-l-violet-500" />
-                      <div className="text-9xl font-black">{countdown}</div>
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-white">
+                    <div className="relative flex h-72 w-72 items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border-[12px] border-white/70 shadow-[0_0_40px_rgba(0,0,0,0.45)]" />
+                      <div
+                        className="text-[9rem] font-black leading-none"
+                        style={{
+                          textShadow:
+                            "0 6px 18px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.65)",
+                        }}
+                      >
+                        {countdown}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1036,6 +1076,60 @@ export default function App() {
             >
               <Check size={32} />
               {isCreating ? "결과 만드는 중..." : `${selectedIndexes.length}/4 선택 완료`}
+            </button>
+          </section>
+        )}
+
+        {/* ── CAPTION INPUT ───────────────────── */}
+        {phase === PHASE.CAPTION_INPUT && (
+          <section className="w-full max-w-4xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 text-center shadow-2xl">
+            <BackButton onClick={goBack} />
+
+            <h2 className="text-5xl font-black text-pink-500">문구를 입력하세요</h2>
+            <p className="mt-4 text-xl font-bold text-zinc-500">
+              기본 프레임 하단에 들어갈 문구예요. 최대 20자까지 입력할 수 있어요.
+            </p>
+
+            <div className="mt-10 rounded-[2rem] bg-white p-6 shadow-xl">
+              <input
+                value={captionText}
+                onChange={(event) => setCaptionText(event.target.value.slice(0, 20))}
+                maxLength={20}
+                autoFocus
+                placeholder="예) 오늘 우리 최고!"
+                className="w-full rounded-3xl border-4 border-pink-100 bg-[#fff7f4] px-6 py-6 text-center text-4xl font-black text-zinc-800 outline-none focus:border-pink-400"
+              />
+
+              <div className="mt-4 text-lg font-black text-zinc-400">
+                {captionText.length}/20
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-3xl bg-white px-8 py-6 text-center shadow-lg">
+              <div className="text-lg font-bold text-zinc-400">미리보기</div>
+              <div className="mt-2 text-3xl font-black text-zinc-800">
+                {captionText.trim() || "NOLGURO NECUT"}
+              </div>
+            </div>
+
+            <button
+              onClick={confirmCaption}
+              disabled={isCreating}
+              className="mt-8 flex w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 py-5 text-3xl font-black text-white shadow-xl active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
+            >
+              <Check size={32} />
+              {isCreating ? "결과 만드는 중..." : "이 문구로 만들기"}
+            </button>
+
+            <button
+              onClick={() => {
+                setCaptionText("");
+                confirmCaption();
+              }}
+              disabled={isCreating}
+              className="mt-4 text-lg font-bold text-zinc-500 underline active:scale-95"
+            >
+              문구 없이 기본 문구로 만들기
             </button>
           </section>
         )}
