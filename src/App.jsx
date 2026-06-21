@@ -347,28 +347,29 @@ async function buildPrintImage(sourceDataUrl) {
   return canvas.toDataURL("image/png");
 }
 
-function openPrintWindow(imageDataUrl, onStatus) {
-  const win = window.open("", "_blank");
-  if (!win) {
-    onStatus("인쇄창이 차단됐습니다. 브라우저 팝업 허용 후 다시 눌러 주세요.");
-    return;
-  }
+function openPrintIframe(imageDataUrl, onStatus) {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;";
+  document.body.appendChild(iframe);
 
-  win.document.write(`<!doctype html><html><head>
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!doctype html><html><head>
     <meta charset="utf-8"/>
-    <title>놀구로 네컷 인쇄</title>
     <style>
       @page { size: 100mm 177mm; margin: 0; }
-      html,body { margin:0; padding:0; width:100%; height:100%; background:#fff; display:flex; align-items:center; justify-content:center; }
-      img { width:100%; height:100%; object-fit:contain; display:block; }
+      html, body { margin:0; padding:0; background:#fff; }
+      img { width:100mm; height:177mm; display:block; }
     </style>
   </head><body><img src="${imageDataUrl}" /></body></html>`);
-  win.document.close();
-  win.focus();
+  doc.close();
+
   setTimeout(() => {
-    win.print();
-    onStatus("인쇄창에서 Canon SELPHY CP1500을 선택하고 인쇄를 눌러 주세요.");
-  }, 700);
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    onStatus("인쇄 화면에서 Canon SELPHY CP1500을 선택하고 인쇄를 눌러 주세요.");
+    setTimeout(() => document.body.removeChild(iframe), 10000);
+  }, 600);
 }
 
 // ─────────────────────────────────────────────
@@ -458,6 +459,12 @@ export default function App() {
   // ── 기본 상태 ─────────────────────────────
   const [phase,         setPhase]         = useState(PHASE.WAITING);
   const [selectedFrame, setSelectedFrame] = useState(FRAME_COLORS[0]);
+  const [basicFrameEnabled, setBasicFrameEnabled] = useState(
+    () => localStorage.getItem("basicFrameEnabled") !== "false"
+  );
+  const [eventFrameEnabled, setEventFrameEnabled] = useState(
+    () => localStorage.getItem("eventFrameEnabled") !== "false"
+  );
   const [mirrorResult,  setMirrorResult]  = useState(
     () => localStorage.getItem("mirrorResult") !== "false"
   );
@@ -496,6 +503,8 @@ export default function App() {
   // ── ref 동기화 ────────────────────────────
   useEffect(() => { capturedPhotosRef.current  = capturedPhotos;  }, [capturedPhotos]);
   useEffect(() => { selectedIndexesRef.current = selectedIndexes; }, [selectedIndexes]);
+  useEffect(() => { localStorage.setItem("basicFrameEnabled", String(basicFrameEnabled)); }, [basicFrameEnabled]);
+  useEffect(() => { localStorage.setItem("eventFrameEnabled", String(eventFrameEnabled)); }, [eventFrameEnabled]);
   useEffect(() => { localStorage.setItem("mirrorResult", String(mirrorResult)); }, [mirrorResult]);
 
   const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
@@ -771,8 +780,8 @@ export default function App() {
     setPrintBusy(true); setPrintStatus("출력 준비 중입니다...");
     try {
       const printImg = await buildPrintImage(resultUrl);
-      setPrintStatus("인쇄창을 여는 중입니다...");
-      setTimeout(() => openPrintWindow(printImg, setPrintStatus), 300);
+      setPrintStatus("인쇄 화면을 여는 중입니다...");
+      setTimeout(() => openPrintIframe(printImg, setPrintStatus), 300);
     } catch (e) {
       console.error(e);
       setPrintStatus("인쇄용 이미지 생성에 실패했습니다. 다시 눌러 주세요.");
@@ -877,19 +886,27 @@ export default function App() {
           <section className="w-full max-w-3xl rounded-[2.5rem] border-4 border-white bg-[#fff7f4] p-8 shadow-2xl">
             <BackButton onClick={goBack} />
             <h2 className="text-center text-5xl font-black text-pink-500">관리자 설정</h2>
-            <div className="mt-10 rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
-              <div className="flex items-center justify-between gap-6">
-                <div>
-                  <div className="text-3xl font-black text-zinc-800">최종 사진 좌우반전</div>
-                  <p className="mt-2 text-lg font-bold text-zinc-500">ON이면 화면에서 본 모습 그대로 저장됩니다.</p>
+            <div className="mt-10 flex flex-col gap-4">
+              {[
+                { label: "기본 프레임 활성화", desc: "OFF이면 기본 프레임이 선택 화면에서 숨겨집니다.", value: basicFrameEnabled, set: setBasicFrameEnabled },
+                { label: "이벤트 프레임 활성화", desc: "OFF이면 이벤트 프레임이 선택 화면에서 숨겨집니다.", value: eventFrameEnabled, set: setEventFrameEnabled },
+                { label: "최종 사진 좌우반전", desc: "ON이면 화면에서 본 모습 그대로 저장됩니다.", value: mirrorResult, set: setMirrorResult },
+              ].map(({ label, desc, value, set }) => (
+                <div key={label} className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
+                  <div className="flex items-center justify-between gap-6">
+                    <div>
+                      <div className="text-3xl font-black text-zinc-800">{label}</div>
+                      <p className="mt-2 text-lg font-bold text-zinc-500">{desc}</p>
+                    </div>
+                    <button
+                      onClick={() => set((p) => !p)}
+                      className={`rounded-full px-8 py-4 text-2xl font-black shadow-lg active:scale-95 ${value ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
+                    >
+                      {value ? "ON" : "OFF"}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setMirrorResult((p) => !p)}
-                  className={`rounded-full px-8 py-4 text-2xl font-black shadow-lg active:scale-95 ${mirrorResult ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
-                >
-                  {mirrorResult ? "ON" : "OFF"}
-                </button>
-              </div>
+              ))}
             </div>
           </section>
         )}
@@ -902,20 +919,24 @@ export default function App() {
             <h2 className="text-5xl font-black text-pink-500">어떤 프레임으로 찍을까요?</h2>
             <p className="mt-4 text-2xl font-bold text-zinc-500">원하는 프레임을 선택해 주세요</p>
             <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
-              <button onClick={() => setPhase(PHASE.BASIC_COLOR_SELECT)}
-                className="rounded-[2rem] border-4 border-pink-100 bg-white p-8 shadow-xl active:scale-95">
-                <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-pink-100 text-6xl">🎨</div>
-                <div className="mt-6 text-4xl font-black text-zinc-800">기본 프레임</div>
-                <p className="mt-4 text-xl font-bold text-zinc-500">원하는 색상을 골라 촬영해요</p>
-                <div className="mt-8 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-8 py-4 text-2xl font-black text-white shadow-lg">선택하기</div>
-              </button>
-              <button onClick={() => setPhase(PHASE.EVENT_FRAME_SELECT)}
-                className="rounded-[2rem] border-4 border-yellow-100 bg-white p-8 shadow-xl active:scale-95">
-                <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-yellow-100 text-6xl">🎉</div>
-                <div className="mt-6 text-4xl font-black text-zinc-800">이벤트 프레임</div>
-                <p className="mt-4 text-xl font-bold text-zinc-500">행사 전용 프레임으로 촬영해요</p>
-                <div className="mt-8 rounded-full bg-gradient-to-r from-yellow-300 to-pink-400 px-8 py-4 text-2xl font-black text-white shadow-lg">선택하기</div>
-              </button>
+              {basicFrameEnabled && (
+                <button onClick={() => setPhase(PHASE.BASIC_COLOR_SELECT)}
+                  className="rounded-[2rem] border-4 border-pink-100 bg-white p-8 shadow-xl active:scale-95">
+                  <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-pink-100 text-6xl">🎨</div>
+                  <div className="mt-6 text-4xl font-black text-zinc-800">기본 프레임</div>
+                  <p className="mt-4 text-xl font-bold text-zinc-500">원하는 색상을 골라 촬영해요</p>
+                  <div className="mt-8 rounded-full bg-gradient-to-r from-pink-400 to-rose-400 px-8 py-4 text-2xl font-black text-white shadow-lg">선택하기</div>
+                </button>
+              )}
+              {eventFrameEnabled && (
+                <button onClick={() => setPhase(PHASE.EVENT_FRAME_SELECT)}
+                  className="rounded-[2rem] border-4 border-yellow-100 bg-white p-8 shadow-xl active:scale-95">
+                  <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-yellow-100 text-6xl">🎉</div>
+                  <div className="mt-6 text-4xl font-black text-zinc-800">이벤트 프레임</div>
+                  <p className="mt-4 text-xl font-bold text-zinc-500">행사 전용 프레임으로 촬영해요</p>
+                  <div className="mt-8 rounded-full bg-gradient-to-r from-yellow-300 to-pink-400 px-8 py-4 text-2xl font-black text-white shadow-lg">선택하기</div>
+                </button>
+              )}
             </div>
           </section>
         )}
