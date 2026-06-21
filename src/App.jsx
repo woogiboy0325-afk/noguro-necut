@@ -500,6 +500,9 @@ export default function App() {
   const [mirrorResult,  setMirrorResult]  = useState(
     () => localStorage.getItem("mirrorResult") !== "false"
   );
+  const [mainImageMode, setMainImageMode] = useState(
+    () => localStorage.getItem("mainImageMode") || "default"
+  );
 
   // ── 관리자 ────────────────────────────────
   const [adminInput, setAdminInput] = useState("");
@@ -538,6 +541,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem("basicFrameEnabled", String(basicFrameEnabled)); }, [basicFrameEnabled]);
   useEffect(() => { localStorage.setItem("eventFrameEnabled", String(eventFrameEnabled)); }, [eventFrameEnabled]);
   useEffect(() => { localStorage.setItem("mirrorResult", String(mirrorResult)); }, [mirrorResult]);
+  useEffect(() => { localStorage.setItem("mainImageMode", mainImageMode); }, [mainImageMode]);
 
   const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
 
@@ -869,7 +873,7 @@ export default function App() {
           >
             <div className="relative h-full max-w-full aspect-[2/3]">
               <img
-                src="/intro/main-image-clean.png"
+                src={mainImageMode === "event" ? "/intro/main-image-event.png" : "/intro/main-image-clean.png"}
                 alt="놀구로 네컷 메인"
                 draggable={false}
                 className="pointer-events-none h-full w-full select-none object-contain"
@@ -939,6 +943,28 @@ export default function App() {
                   </div>
                 </div>
               ))}
+
+              {/* 메인 화면 이미지 선택 */}
+              <div className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
+                <div className="text-3xl font-black text-zinc-800">첫 화면 이미지</div>
+                <p className="mt-2 text-lg font-bold text-zinc-500">
+                  행사 이미지는 <span className="font-black text-pink-500">/intro/main-image-event.png</span> 파일을 추가하면 활성화됩니다.
+                </p>
+                <div className="mt-6 flex gap-4">
+                  <button
+                    onClick={() => setMainImageMode("default")}
+                    className={`flex-1 rounded-full py-4 text-2xl font-black shadow-lg active:scale-95 ${mainImageMode === "default" ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
+                  >
+                    기본
+                  </button>
+                  <button
+                    onClick={() => setMainImageMode("event")}
+                    className={`flex-1 rounded-full py-4 text-2xl font-black shadow-lg active:scale-95 ${mainImageMode === "event" ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
+                  >
+                    행사
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         )}
