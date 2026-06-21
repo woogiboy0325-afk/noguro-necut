@@ -81,15 +81,16 @@ const EVENT_FRAMES = [
     ],
   },
   {
-    id:     "usaEdition",
-    name:   "미국편 프레임",
-    desc:   "작은 지구, 놀구로 미국편 이벤트 프레임",
-    type:   "image",
-    image:  "/frames/event/usa-event-frame.png",
-    bg:     "#d6eaf8",
-    accent: "#ffffff",
-    text:   "#1a3a6b",
-    dateY:  1720,
+    id:          "usaEdition",
+    name:        "미국편 프레임",
+    desc:        "작은 지구, 놀구로 미국편 이벤트 프레임",
+    type:        "image",
+    image:       "/frames/event/usa-event-frame.png",
+    bg:          "#d6eaf8",
+    accent:      "#ffffff",
+    text:        "#1a3a6b",
+    dateY:       1720,
+    photosOnTop: true,
     slots: [
       { x:  50, y:  350, width: 525, height: 630 },
       { x: 625, y:  350, width: 525, height: 630 },
@@ -290,17 +291,24 @@ async function composeFinalImage(photoList, frame, captionText = "") {
       console.error("이벤트 프레임 로드 실패", e);
     }
 
-    // 3. 사진을 슬롯 위치에 그리기
     const activeSlots = frame.slots || EVENT_SLOTS;
-    for (let i = 0; i < photoList.length; i++) {
-      const img  = await loadImage(photoList[i]);
-      const slot = activeSlots[i];
-      drawCoverImage(ctx, img, slot, 16);
-    }
 
-    // 4. 투명 PNG 프레임을 위에 덮기 (슬롯 구멍은 투명이라 사진이 그대로 보임)
-    if (overlayImg) {
-      ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
+    if (frame.photosOnTop) {
+      // 프레임 먼저, 사진을 위에 → 흰색(불투명) 박스 프레임용
+      if (overlayImg) ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
+      for (let i = 0; i < photoList.length; i++) {
+        const img  = await loadImage(photoList[i]);
+        const slot = activeSlots[i];
+        drawCoverImage(ctx, img, slot, 16);
+      }
+    } else {
+      // 사진 먼저, 프레임을 위에 → 투명 구멍 프레임용 (기본)
+      for (let i = 0; i < photoList.length; i++) {
+        const img  = await loadImage(photoList[i]);
+        const slot = activeSlots[i];
+        drawCoverImage(ctx, img, slot, 16);
+      }
+      if (overlayImg) ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
     }
 
   } else {
