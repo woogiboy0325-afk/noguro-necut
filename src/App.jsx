@@ -69,10 +69,33 @@ const EVENT_FRAMES = [
     desc:   "놀구로 네컷 전용 이벤트 프레임",
     type:   "image",
     image:  "/frames/event/noguro-pixel-frame.png",
-    bg:     "#87ceeb",   // 슬롯 배경으로 쓸 하늘색
+    bg:     "#87ceeb",
     accent: "#ffffff",
     text:   "#5b3415",
     dateY:  1635,
+    slots: [
+      { x: 105, y:  264, width: 462, height: 640 },
+      { x: 621, y:  264, width: 466, height: 640 },
+      { x: 105, y:  948, width: 462, height: 575 },
+      { x: 621, y:  948, width: 466, height: 575 },
+    ],
+  },
+  {
+    id:     "usaEdition",
+    name:   "미국편 프레임",
+    desc:   "작은 지구, 놀구로 미국편 이벤트 프레임",
+    type:   "image",
+    image:  "/frames/event/usa-event-frame.png",
+    bg:     "#d6eaf8",
+    accent: "#ffffff",
+    text:   "#1a3a6b",
+    dateY:  1720,
+    slots: [
+      { x:  50, y:  350, width: 525, height: 630 },
+      { x: 625, y:  350, width: 525, height: 630 },
+      { x:  50, y: 1020, width: 525, height: 655 },
+      { x: 625, y: 1020, width: 525, height: 655 },
+    ],
   },
 ];
 
@@ -268,9 +291,10 @@ async function composeFinalImage(photoList, frame, captionText = "") {
     }
 
     // 3. 사진을 슬롯 위치에 그리기
+    const activeSlots = frame.slots || EVENT_SLOTS;
     for (let i = 0; i < photoList.length; i++) {
       const img  = await loadImage(photoList[i]);
-      const slot = EVENT_SLOTS[i];
+      const slot = activeSlots[i];
       drawCoverImage(ctx, img, slot, 16);
     }
 
