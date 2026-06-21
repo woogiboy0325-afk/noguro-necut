@@ -92,10 +92,10 @@ const EVENT_FRAMES = [
     dateY:       1720,
     photosOnTop: true,
     slots: [
-      { x:  50, y:  350, width: 525, height: 630 },
-      { x: 625, y:  350, width: 525, height: 630 },
-      { x:  50, y: 1020, width: 525, height: 655 },
-      { x: 625, y: 1020, width: 525, height: 655 },
+      { x:  89, y:  495, width: 498, height: 505 },
+      { x: 623, y:  495, width: 495, height: 505 },
+      { x:  89, y: 1031, width: 498, height: 495 },
+      { x: 623, y: 1031, width: 495, height: 495 },
     ],
   },
 ];
