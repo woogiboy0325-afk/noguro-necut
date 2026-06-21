@@ -506,6 +506,10 @@ export default function App() {
   const [mainImageMode, setMainImageMode] = useState(
     () => localStorage.getItem("mainImageMode") || "default"
   );
+  const [eventFrameStatus, setEventFrameStatus] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("eventFrameStatus") || "{}"); }
+    catch { return {}; }
+  });
 
   // ── 관리자 ────────────────────────────────
   const [adminInput, setAdminInput] = useState("");
@@ -546,6 +550,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem("mirrorResult", String(mirrorResult)); }, [mirrorResult]);
   useEffect(() => { localStorage.setItem("printEnabled", String(printEnabled)); }, [printEnabled]);
   useEffect(() => { localStorage.setItem("mainImageMode", mainImageMode); }, [mainImageMode]);
+  useEffect(() => { localStorage.setItem("eventFrameStatus", JSON.stringify(eventFrameStatus)); }, [eventFrameStatus]);
 
   const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
 
@@ -949,6 +954,25 @@ export default function App() {
                 </div>
               ))}
 
+              {/* 이벤트 프레임 개별 관리 */}
+              <div className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
+                <div className="text-3xl font-black text-zinc-800">이벤트 프레임 관리</div>
+                <p className="mt-2 text-lg font-bold text-zinc-500">각 프레임을 개별로 활성화/비활성화할 수 있습니다.</p>
+                <div className="mt-6 flex flex-col gap-4">
+                  {EVENT_FRAMES.map((frame) => (
+                    <div key={frame.id} className="flex items-center justify-between gap-4">
+                      <span className="text-xl font-black text-zinc-800">{frame.name}</span>
+                      <button
+                        onClick={() => setEventFrameStatus((p) => ({ ...p, [frame.id]: p[frame.id] === false ? true : false }))}
+                        className={`shrink-0 rounded-full px-6 py-3 text-xl font-black shadow-lg active:scale-95 ${eventFrameStatus[frame.id] !== false ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
+                      >
+                        {eventFrameStatus[frame.id] !== false ? "ON" : "OFF"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* 메인 화면 이미지 선택 */}
               <div className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
                 <div className="text-3xl font-black text-zinc-800">첫 화면 이미지</div>
@@ -1029,7 +1053,7 @@ export default function App() {
             <h2 className="text-5xl font-black text-pink-500">이벤트 프레임을 선택하세요</h2>
             <p className="mt-4 text-xl font-bold text-zinc-500">이벤트 프레임은 색상이 고정됩니다</p>
             <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-              {EVENT_FRAMES.map((frame) => (
+              {EVENT_FRAMES.filter((f) => eventFrameStatus[f.id] !== false).map((frame) => (
                 <button key={frame.id} onClick={() => prepareShooting(frame)}
                   className="rounded-[2rem] border-4 border-yellow-100 bg-white p-6 shadow-xl active:scale-95">
                   <FrameMini frame={frame} />
