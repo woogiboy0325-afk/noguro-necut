@@ -500,6 +500,9 @@ export default function App() {
   const [mirrorResult,  setMirrorResult]  = useState(
     () => localStorage.getItem("mirrorResult") !== "false"
   );
+  const [printEnabled, setPrintEnabled] = useState(
+    () => localStorage.getItem("printEnabled") !== "false"
+  );
   const [mainImageMode, setMainImageMode] = useState(
     () => localStorage.getItem("mainImageMode") || "default"
   );
@@ -541,6 +544,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem("basicFrameEnabled", String(basicFrameEnabled)); }, [basicFrameEnabled]);
   useEffect(() => { localStorage.setItem("eventFrameEnabled", String(eventFrameEnabled)); }, [eventFrameEnabled]);
   useEffect(() => { localStorage.setItem("mirrorResult", String(mirrorResult)); }, [mirrorResult]);
+  useEffect(() => { localStorage.setItem("printEnabled", String(printEnabled)); }, [printEnabled]);
   useEffect(() => { localStorage.setItem("mainImageMode", mainImageMode); }, [mainImageMode]);
 
   const isCameraPhase = [PHASE.READY, PHASE.CAMERA, PHASE.COUNTDOWN, PHASE.PREVIEW].includes(phase);
@@ -927,6 +931,7 @@ export default function App() {
                 { label: "기본 프레임 활성화", desc: "OFF이면 기본 프레임이 선택 화면에서 숨겨집니다.", value: basicFrameEnabled, set: setBasicFrameEnabled },
                 { label: "이벤트 프레임 활성화", desc: "OFF이면 이벤트 프레임이 선택 화면에서 숨겨집니다.", value: eventFrameEnabled, set: setEventFrameEnabled },
                 { label: "최종 사진 좌우반전", desc: "ON이면 화면에서 본 모습 그대로 저장됩니다.", value: mirrorResult, set: setMirrorResult },
+                { label: "인쇄 버튼 활성화", desc: "OFF이면 결과 화면에서 인쇄 버튼이 숨겨집니다.", value: printEnabled, set: setPrintEnabled },
               ].map(({ label, desc, value, set }) => (
                 <div key={label} className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
                   <div className="flex items-center justify-between gap-6">
@@ -948,20 +953,20 @@ export default function App() {
               <div className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
                 <div className="text-3xl font-black text-zinc-800">첫 화면 이미지</div>
                 <p className="mt-2 text-lg font-bold text-zinc-500">
-                  행사 이미지는 <span className="font-black text-pink-500">/intro/main-image-event.png</span> 파일을 추가하면 활성화됩니다.
+                  선택한 화면이 첫 번째 대기 화면으로 표시됩니다.
                 </p>
                 <div className="mt-6 flex gap-4">
                   <button
                     onClick={() => setMainImageMode("default")}
                     className={`flex-1 rounded-full py-4 text-2xl font-black shadow-lg active:scale-95 ${mainImageMode === "default" ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
                   >
-                    기본
+                    기본화면
                   </button>
                   <button
                     onClick={() => setMainImageMode("event")}
                     className={`flex-1 rounded-full py-4 text-2xl font-black shadow-lg active:scale-95 ${mainImageMode === "event" ? "bg-pink-500 text-white" : "bg-zinc-200 text-zinc-700"}`}
                   >
-                    행사
+                    작은지구
                   </button>
                 </div>
               </div>
@@ -1253,14 +1258,16 @@ export default function App() {
                   <Download size={22} /> 이 기기에 저장하기
                 </button>
 
-                <button
-                  onClick={handlePrint}
-                  disabled={!resultUrl || printBusy}
-                  className="flex w-full items-center justify-center gap-3 rounded-full bg-pink-500 py-4 text-xl font-black text-white shadow-lg active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
-                >
-                  <Printer size={22} />
-                  {printBusy ? "준비 중..." : "🖨️ 인쇄하기 (CP1500)"}
-                </button>
+                {printEnabled && (
+                  <button
+                    onClick={handlePrint}
+                    disabled={!resultUrl || printBusy}
+                    className="flex w-full items-center justify-center gap-3 rounded-full bg-pink-500 py-4 text-xl font-black text-white shadow-lg active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
+                  >
+                    <Printer size={22} />
+                    {printBusy ? "준비 중..." : "🖨️ 인쇄하기 (CP1500)"}
+                  </button>
+                )}
               </div>
 
               {/* 남은 시간 */}
