@@ -340,6 +340,20 @@ async function composeFinalImage(photoList, frame, captionText = "") {
   return canvas.toDataURL("image/png");
 }
 
+async function uploadToDrive(dataUrl) {
+  const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
+  const folderId  = import.meta.env.VITE_DRIVE_FOLDER_ID;
+  if (!scriptUrl || !folderId) return;
+
+  const fileName = `noguro-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+  await fetch(scriptUrl, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ image: dataUrl, fileName, folderId }),
+  });
+}
+
 function dataUrlToBlob(dataUrl) {
   const [header, base64] = dataUrl.split(",");
   const mime   = header.match(/:(.*?);/)?.[1] || "image/png";
@@ -789,6 +803,8 @@ export default function App() {
       const photos = indexes.map((i) => capturedPhotosRef.current[i]);
       const final  = await composeFinalImage(photos, selectedFrame, customCaption);
       setResultUrl(final);
+
+      uploadToDrive(final).catch(console.error);
 
       const uploaded = await uploadResultImage(final);
       setPublicUrl(uploaded);
