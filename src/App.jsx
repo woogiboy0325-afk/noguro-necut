@@ -89,7 +89,7 @@ const EVENT_FRAMES = [
     bg:          "#d6eaf8",
     accent:      "#ffffff",
     text:        "#1a3a6b",
-    dateY:       1720,
+    logoBottom:  true,
     photosOnTop: true,
     slots: [
       { x:  89, y:  495, width: 498, height: 505 },
@@ -330,12 +330,28 @@ async function composeFinalImage(photoList, frame, captionText = "") {
   // 날짜 텍스트
   const today    = new Date();
   const dateText = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
-  const dateY    = frame.dateY || 1668;
 
-  ctx.fillStyle = frame.text || "#ffffff";
-  ctx.font      = "bold 34px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(dateText, CANVAS_W / 2, dateY);
+  if (isEventFrame && frame.logoBottom) {
+    // 이벤트 프레임 하단: 놀구로 로고(좌) + 날짜(우)
+    try {
+      const logo = await loadImage("/logos/noguro-logo.jpg");
+      const logoH = 70;
+      const logoW = Math.round(logo.width * (logoH / logo.height));
+      const bottomY = CANVAS_H - 90;
+      ctx.drawImage(logo, 40, bottomY, logoW, logoH);
+    } catch {}
+
+    ctx.fillStyle = frame.text || "#333333";
+    ctx.font      = "bold 32px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(dateText, CANVAS_W - 40, CANVAS_H - 52);
+  } else {
+    const dateY = frame.dateY || 1668;
+    ctx.fillStyle = frame.text || "#ffffff";
+    ctx.font      = "bold 34px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(dateText, CANVAS_W / 2, dateY);
+  }
 
   return canvas.toDataURL("image/png");
 }
