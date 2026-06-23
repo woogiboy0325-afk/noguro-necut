@@ -519,6 +519,9 @@ export default function App() {
   const [printEnabled, setPrintEnabled] = useState(
     () => localStorage.getItem("printEnabled") !== "false"
   );
+  const [downloadEnabled, setDownloadEnabled] = useState(
+    () => localStorage.getItem("downloadEnabled") !== "false"
+  );
   const [mainImageMode, setMainImageMode] = useState(
     () => localStorage.getItem("mainImageMode") || "default"
   );
@@ -565,6 +568,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem("eventFrameEnabled", String(eventFrameEnabled)); }, [eventFrameEnabled]);
   useEffect(() => { localStorage.setItem("mirrorResult", String(mirrorResult)); }, [mirrorResult]);
   useEffect(() => { localStorage.setItem("printEnabled", String(printEnabled)); }, [printEnabled]);
+  useEffect(() => { localStorage.setItem("downloadEnabled", String(downloadEnabled)); }, [downloadEnabled]);
   useEffect(() => { localStorage.setItem("mainImageMode", mainImageMode); }, [mainImageMode]);
   useEffect(() => { localStorage.setItem("eventFrameStatus", JSON.stringify(eventFrameStatus)); }, [eventFrameStatus]);
 
@@ -954,6 +958,7 @@ export default function App() {
                 { label: "기본 프레임 활성화", desc: "OFF이면 기본 프레임이 선택 화면에서 숨겨집니다.", value: basicFrameEnabled, set: setBasicFrameEnabled },
                 { label: "이벤트 프레임 활성화", desc: "OFF이면 이벤트 프레임이 선택 화면에서 숨겨집니다.", value: eventFrameEnabled, set: setEventFrameEnabled },
                 { label: "최종 사진 좌우반전", desc: "ON이면 화면에서 본 모습 그대로 저장됩니다.", value: mirrorResult, set: setMirrorResult },
+                { label: "저장 버튼 활성화", desc: "OFF이면 결과 화면에서 저장 버튼이 숨겨집니다.", value: downloadEnabled, set: setDownloadEnabled },
                 { label: "인쇄 버튼 활성화", desc: "OFF이면 결과 화면에서 인쇄 버튼이 숨겨집니다.", value: printEnabled, set: setPrintEnabled },
               ].map(({ label, desc, value, set }) => (
                 <div key={label} className="rounded-[2rem] border-2 border-pink-100 bg-white p-8 shadow-xl">
@@ -1293,12 +1298,14 @@ export default function App() {
 
               {/* 버튼 그룹 */}
               <div className="mt-7 flex w-full flex-col gap-3">
-                <button
-                  onClick={downloadResult}
-                  className="flex w-full items-center justify-center gap-3 rounded-full bg-zinc-900 py-4 text-xl font-black text-white active:scale-95"
-                >
-                  <Download size={22} /> 이 기기에 저장하기
-                </button>
+                {downloadEnabled && (
+                  <button
+                    onClick={downloadResult}
+                    className="flex w-full items-center justify-center gap-3 rounded-full bg-zinc-900 py-4 text-xl font-black text-white active:scale-95"
+                  >
+                    <Download size={22} /> 이 기기에 저장하기
+                  </button>
+                )}
 
                 {printEnabled && (
                   <button
