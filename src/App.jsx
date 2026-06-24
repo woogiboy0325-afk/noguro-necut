@@ -368,33 +368,6 @@ function dataUrlToBlob(dataUrl) {
 // ─────────────────────────────────────────────
 // 인쇄 유틸 (CP1500 / KP-108IN 용)
 // ─────────────────────────────────────────────
-async function buildPrintImage(sourceDataUrl) {
-  const src       = await loadImage(sourceDataUrl);
-  const paperW    = 1200;
-  const paperH    = Math.round((paperW * 177) / 100);
-  const cutH      = Math.round((paperW * 148) / 100);
-  const tabH      = Math.round((paperH - cutH) / 2);
-
-  const canvas    = document.createElement("canvas");
-  canvas.width    = paperW;
-  canvas.height   = paperH;
-  const ctx       = canvas.getContext("2d");
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, paperW, paperH);
-
-  const srcRatio = src.width / src.height;
-  const cutRatio = paperW / cutH;
-  let dw, dh;
-  if (srcRatio > cutRatio) { dw = paperW; dh = dw / srcRatio; }
-  else                      { dh = cutH;  dw = dh * srcRatio; }
-
-  const dx = (paperW - dw) / 2;
-  const dy = tabH + (cutH - dh) / 2;
-  ctx.drawImage(src, dx, dy, dw, dh);
-  return canvas.toDataURL("image/png");
-}
-
 function openPrintIframe(imageDataUrl, onStatus) {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;";
@@ -402,12 +375,13 @@ function openPrintIframe(imageDataUrl, onStatus) {
 
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
+  // CP1500 포스트카드: 100x148mm. object-fit:contain 으로 절대 넘치지 않게.
   doc.write(`<!doctype html><html><head>
     <meta charset="utf-8"/>
     <style>
-      @page { size: 100mm 177mm; margin: 0; }
-      html, body { margin:0; padding:0; background:#fff; }
-      img { width:100mm; height:177mm; display:block; }
+      @page { size: 100mm 148mm; margin: 0; }
+      html, body { margin:0; padding:0; width:100mm; height:148mm; background:#fff; overflow:hidden; }
+      img { width:100mm; height:148mm; object-fit:contain; display:block; }
     </style>
   </head><body><img src="${imageDataUrl}" /></body></html>`);
   doc.close();
@@ -844,14 +818,12 @@ export default function App() {
 
   async function handlePrint() {
     if (!resultUrl || printBusy) return;
-    setPrintBusy(true); setPrintStatus("출력 준비 중입니다...");
+    setPrintBusy(true); setPrintStatus("인쇄 화면을 여는 중입니다...");
     try {
-      const printImg = await buildPrintImage(resultUrl);
-      setPrintStatus("인쇄 화면을 여는 중입니다...");
-      setTimeout(() => openPrintIframe(printImg, setPrintStatus), 300);
+      setTimeout(() => openPrintIframe(resultUrl, setPrintStatus), 300);
     } catch (e) {
       console.error(e);
-      setPrintStatus("인쇄용 이미지 생성에 실패했습니다. 다시 눌러 주세요.");
+      setPrintStatus("인쇄 실패. 다시 눌러 주세요.");
     } finally {
       setPrintBusy(false);
     }
