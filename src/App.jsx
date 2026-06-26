@@ -375,13 +375,13 @@ function openPrintIframe(imageDataUrl, onStatus) {
 
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  // CP1500 포스트카드: 100x148mm. object-fit:contain 으로 절대 넘치지 않게.
+  // CP1500: 100x148mm 용지, 테두리 뜯기 방식 → cover로 꽉 채워야 뜯은 후 흰 여백 없음
   doc.write(`<!doctype html><html><head>
     <meta charset="utf-8"/>
     <style>
       @page { size: 100mm 148mm; margin: 0; }
       html, body { margin:0; padding:0; width:100mm; height:148mm; background:#fff; overflow:hidden; }
-      img { width:100mm; height:148mm; object-fit:contain; display:block; }
+      img { width:100mm; height:148mm; object-fit:cover; display:block; }
     </style>
   </head><body><img src="${imageDataUrl}" /></body></html>`);
   doc.close();
